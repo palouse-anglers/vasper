@@ -79,23 +79,6 @@ ui <- page_navbar(
     )
   ),
 
-  # Settings Tab
-  nav_panel(
-    title = "Settings",
-    icon = icon("cog"),
-    layout_column_wrap(
-      width = 1,
-      card(
-        card_header("Theme Customization"),
-        p("Theme settings coming soon...")
-      ),
-      card(
-        card_header("API Configuration"),
-        p("Configure API keys and preferences here.")
-      )
-    )
-  ),
-
   # Footer
   nav_spacer(),
   nav_item(
