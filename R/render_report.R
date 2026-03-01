@@ -16,6 +16,9 @@
 #'   (default: "soil_data").
 #' @param dictionary_table Character. Name of the database table containing the
 #'   data dictionary (default: "data_dictionary").
+#' @param output_dir Character. Directory where rendered output files are
+#'   written. Defaults to `"."` (current working directory). The directory
+#'   must already exist.
 #'
 #' @return The path to the rendered report file (character). When
 #'   `format = "all"`, returns the path to a zip file containing both outputs.
@@ -26,7 +29,8 @@ render_report <- function(
   format = c("html", "docx", "all"),
   con = NULL,
   data_table = "soil_data",
-  dictionary_table = "data_dictionary"
+  dictionary_table = "data_dictionary",
+  output_dir = "."
 ) {
   format <- match.arg(format)
 
@@ -53,14 +57,13 @@ render_report <- function(
     mustWork = TRUE
   )
 
-  # Create a unique temp directory for output so concurrent renders
-  # don't collide.
-  output_dir <- tempfile(pattern = "soil-report-")
-  dir.create(output_dir)
+  output_dir <- normalizePath(output_dir, mustWork = TRUE)
 
-  # Export database tables to CSV files in the output directory
+  # Export database tables to CSV files in the output directory.
+  # These are cleaned up after rendering via on.exit().
   data_path <- file.path(output_dir, "soil_data.csv")
   dictionary_path <- file.path(output_dir, "data_dictionary.csv")
+  on.exit(unlink(c(data_path, dictionary_path)), add = TRUE)
 
   soil_data <- DBI::dbReadTable(con, data_table)
   write.csv(soil_data, data_path, row.names = FALSE)

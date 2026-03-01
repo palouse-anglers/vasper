@@ -188,9 +188,14 @@ server <- function(input, output, session) {
         format = input$report_format,
         con = con,
         data_table = "soil_data",
-        dictionary_table = "data_dictionary"
+        dictionary_table = "data_dictionary",
+        output_dir = dirname(file)
       )
-      file.copy(report_path, file)
+
+      # Rename into the path Shiny expects for the download.
+      if (!file.rename(report_path, file)) {
+        stop("Failed to deliver the rendered report.")
+      }
     }
   )
 }
