@@ -4,3 +4,10 @@
 .httr-oauth
 .DS_Store
 .quarto
+
+# Environment variables (never commit API keys)
+.Renviron
+
+# soils package report output
+figure-output/
+01_producer-report_files/

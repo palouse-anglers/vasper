@@ -4,8 +4,7 @@ subtitle: "`r params$year` Report"
 params:
   producer_id: "COLUMBIA CONSERVATION DISTRICT"
   year: 2023
-  depth_min: NULL
-  depth_max: NULL
+  depth: NULL
   data_path: "data/soil_data.csv"
   dictionary_path: "data/data_dictionary.csv"
 lang: en
@@ -127,29 +126,15 @@ dictionary <- read.csv(
 <!-- Filter by depth if specified -->
 
 ```{r filter-depth, include=FALSE}
-# Filter data by depth parameters
-# NULL values mean no filter on that boundary
-if (!is.null(params$depth_min) || !is.null(params$depth_max)) {
-  # Keep rows whose depth range overlaps the requested range
-  if (!is.null(params$depth_min)) {
-    data <- data |>
-      dplyr::filter(end_depth_inches > params$depth_min)
-  }
-  if (!is.null(params$depth_max)) {
-    data <- data |>
-      dplyr::filter(start_depth_inches < params$depth_max)
-  }
+# Filter data by depth parameter
+# NULL means no filter (all depths)
+if (!is.null(params$depth)) {
+  data <- data |>
+    dplyr::filter(depth == params$depth)
 
   if (nrow(data) == 0) {
-    depth_desc <- if (!is.null(params$depth_min) && !is.null(params$depth_max)) {
-      glue::glue("{params$depth_min}-{params$depth_max} inches")
-    } else if (!is.null(params$depth_min)) {
-      glue::glue(">{params$depth_min} inches")
-    } else {
-      glue::glue("<{params$depth_max} inches")
-    }
     cli::cli_abort(c(
-      "No samples found for depth range {.val {depth_desc}}.",
+      "No samples found for depth {.val {params$depth}}.",
       "i" = "Available depths: {.val {unique(data$depth)}}"
     ))
   }
@@ -768,9 +753,13 @@ a look to see how your fields compare to others in the project.
 
 ```{r depth-description}
 #| output: asis
-# Always use the actual data range, not the filter parameters
-depth_range <- range(data$start_depth_inches, data$end_depth_inches, na.rm = TRUE)
-cat(glue::glue("Samples were collected from {depth_range[1]} to {depth_range[2]} inches depth."))
+# Show the depth - use filter parameter if specified, otherwise the actual data range
+if (!is.null(params$depth)) {
+  cat(glue::glue("Samples were collected from {params$depth} inches depth."))
+} else {
+  depth_range <- range(data$start_depth_inches, data$end_depth_inches, na.rm = TRUE)
+  cat(glue::glue("Samples were collected from {depth_range[1]} to {depth_range[2]} inches depth."))
+}
 ```
 
 ```{r create-measurement-group-sections}

@@ -6,8 +6,8 @@
 #'
 #' @param producer_id Character. The producer ID to filter on.
 #' @param year Integer. The reporting year.
-#' @param depth_min Numeric. Minimum depth in inches (NULL = no minimum filter).
-#' @param depth_max Numeric. Maximum depth in inches (NULL = no maximum filter).
+#' @param depth Character. The depth layer to filter on (e.g., "0-3", "6-12").
+#'   NULL = no filter (all depths).
 #' @param format Character. "html", "docx", or "all" (both formats, returned
 #'   as a zip archive).
 #' @param con DBI database connection. The database connection containing the
@@ -22,8 +22,7 @@
 render_report <- function(
   producer_id = "COLUMBIA CONSERVATION DISTRICT",
   year = 2023,
-  depth_min = NULL,
-  depth_max = NULL,
+  depth = NULL,
   format = c("html", "docx", "all"),
   con = NULL,
   data_table = "soil_data",
@@ -33,7 +32,9 @@ render_report <- function(
 
   # Validate database connection
   if (is.null(con) || !inherits(con, "DBIConnection")) {
-    stop("A valid DBI database connection must be provided via 'con' parameter.")
+    stop(
+      "A valid DBI database connection must be provided via 'con' parameter."
+    )
   }
 
   # Verify tables exist
@@ -68,7 +69,8 @@ render_report <- function(
   write.csv(dictionary_data, dictionary_path, row.names = FALSE)
 
   # Build output base name (used for single-format renders)
-  base_name <- glue::glue("{year}_{producer_id}_Report")
+  depth_suffix <- if (!is.null(depth)) gsub("-", "to", depth) else "AllDepths"
+  base_name <- glue::glue("{year}_{producer_id}_{depth_suffix}_Report")
 
   # Common render args.
   # execute_dir is set to the template directory so that all relative paths
@@ -80,8 +82,7 @@ render_report <- function(
     execute_params = list(
       producer_id = producer_id,
       year = year,
-      depth_min = depth_min,
-      depth_max = depth_max,
+      depth = depth,
       data_path = data_path,
       dictionary_path = dictionary_path
     ),
