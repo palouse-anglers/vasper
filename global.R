@@ -240,6 +240,14 @@ main_chat <- chat(
   echo = "text"
 )
 
+# Page Registry ----
+# Single source of truth for all navigable pages.
+# Add new pages here — hamburger menu, overlay panels, and tools all read from it.
+app_pages <- list(
+  reports = list(title = "Reports", icon = "file-alt"),
+  soil_data = list(title = "Soil Data", icon = "flask")
+)
+
 # Register tools
 main_chat$register_tool(get_weather_forecast)
 main_chat$register_tool(get_weather_historical)
