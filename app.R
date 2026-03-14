@@ -15,33 +15,10 @@ ui <- page_fillable(
   theme = app_theme,
   padding = 0,
 
-  tags$head(tags$style(HTML(
-    "
-    /* Footer: fixed to viewport bottom, always visible */
-    .bottom-bar {
-      position: fixed;
-      bottom: 0;
-      left: 0;
-      right: 0;
-      z-index: 200;
-      border-top: 1px solid var(--bs-border-color, #dee2e6);
-      padding: 0.4rem 0.75rem;
-      text-align: center;
-      background: var(--bs-body-bg, white);
-    }
-    /* Breathing room so fixed footer never covers content */
-    .tab-pane > * {
-      padding-bottom: 3rem;
-    }
-    /* Hamburger button */
-    .hamburger-btn {
-      position: fixed;
-      top: 8px;
-      right: 8px;
-      z-index: 200;
-    }
-  "
-  ))),
+  tags$head(
+    tags$link(rel = "stylesheet", href = "css/app.css"),
+    tags$script(src = "js/chat.js")
+  ),
 
   # Hamburger menu (fixed top-right)
   div(
@@ -201,7 +178,20 @@ server <- function(input, output, session) {
   # Helper: navigate back to chat
   navigate_to_chat <- function() {
     active_page(NULL)
+    session$sendCustomMessage(
+      "scroll-chat-bottom",
+      list(id = "main_chat", phase = "pre")
+    )
     nav_select("app_view", "chat")
+    session$onFlushed(
+      function() {
+        session$sendCustomMessage(
+          "scroll-chat-bottom",
+          list(id = "main_chat", phase = "after")
+        )
+      },
+      once = TRUE
+    )
     updateActionButton(
       session,
       "toggle_view",

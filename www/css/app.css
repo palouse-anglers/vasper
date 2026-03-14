@@ -1,0 +1,47 @@
+/* Footer: fixed to viewport bottom, always visible */
+.bottom-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 200;
+  border-top: 1px solid var(--bs-border-color, #dee2e6);
+  padding: 0.4rem 0.75rem;
+  text-align: center;
+  background: var(--bs-body-bg, white);
+}
+/* Chat view: no horizontal scrolling; wrap long content instead */
+.tab-pane[data-value='chat'] {
+  overflow-x: hidden;
+}
+#main_chat,
+#main_chat * {
+  box-sizing: border-box;
+  max-width: 100%;
+}
+#main_chat shiny-chat-messages {
+  overflow-x: hidden;
+}
+#main_chat p,
+#main_chat li,
+#main_chat div,
+#main_chat span {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+#main_chat pre,
+#main_chat code {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+/* Breathing room so fixed footer never covers content */
+.tab-pane > * {
+  padding-bottom: 3rem;
+}
+/* Hamburger button */
+.hamburger-btn {
+  position: fixed;
+  top: 8px;
+  right: 8px;
+  z-index: 200;
+}
