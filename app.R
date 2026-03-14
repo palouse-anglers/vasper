@@ -375,7 +375,10 @@ server <- function(input, output, session) {
 
   # Main AI Chat with Weather Tools
   observeEvent(input$main_chat_user_input, {
-    stream <- main_chat$stream_async(input$main_chat_user_input)
+    stream <- main_chat$stream_async(
+      input$main_chat_user_input,
+      stream = "content"
+    )
     chat_append("main_chat", stream)
   })
 

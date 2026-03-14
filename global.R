@@ -238,7 +238,7 @@ main_chat <- chat(
     "field_capacity, h2o_wet_dry, avl_h2o_in, avl_h2o_percent",
     "\nProvide practical agricultural advice based on weather patterns, soil conditions, and farming best practices."
   ),
-  echo = "text"
+  echo = "all"
 )
 
 # Page Registry ----
