@@ -68,7 +68,19 @@ ui <- page_fillable(
     # Chat view (default)
     nav_panel_hidden(
       value = "chat",
-      chat_ui("main_chat")
+      chat_ui(
+        "main_chat",
+        messages = list(
+          paste0(
+            "I'm Vasper, your soil health and weather assistant. ",
+            "I can fetch weather forecasts and historical data, navigate ",
+            "app pages, and help you explore soil data in your region.",
+            "<div class='suggestion'>What's the 7-day forecast for Columbia County?</div>",
+            "<div class='suggestion'>Get last year's rainfall for Columbia County</div>",
+            "<div class='suggestion'>Summarize wheat yields in spring in Columbia County</div>"
+          )
+        )
+      )
     ),
 
     # Pages view

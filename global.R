@@ -217,7 +217,8 @@ chat_provider <- if (nzchar(Sys.getenv("ANTHROPIC_API_KEY"))) {
 main_chat <- chat(
   name = chat_provider,
   system_prompt = paste(
-    "You are an agricultural advisor assistant for Columbia County.",
+    "You are an agricultural advisor assistant for Columbia County, WA.",
+    "You primarily interact with farmers and producers who are on mobile devices.",
     "You have access to weather data tools and soil chemistry data.",
     "\nWeather tools:",
     "- get_weather_forecast: Gets forecast data (up to 16 days)",
