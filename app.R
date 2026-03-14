@@ -199,6 +199,11 @@ server <- function(input, output, session) {
   active_page <- reactiveVal(NULL) # NULL = chat visible
   last_page <- reactiveVal("reports") # remember last page for toggle
 
+  set_active_nav <- function(page = c("chat", names(app_pages))) {
+    page <- match.arg(page)
+    session$sendCustomMessage("set-active-page", list(page = page))
+  }
+
   # Helper: navigate to a page
   navigate_to <- function(page_key) {
     active_page(page_key)
@@ -211,11 +216,13 @@ server <- function(input, output, session) {
       label = "Show chat",
       icon = icon("comments")
     )
+    set_active_nav(page_key)
   }
 
   # Helper: navigate back to chat
   navigate_to_chat <- function() {
     active_page(NULL)
+    set_active_nav("chat")
     session$sendCustomMessage(
       "scroll-chat-bottom",
       list(id = "main_chat", phase = "pre")
@@ -237,6 +244,13 @@ server <- function(input, output, session) {
       icon = icon("eye-slash")
     )
   }
+
+  session$onFlushed(
+    function() {
+      set_active_nav("chat")
+    },
+    once = TRUE
+  )
 
   # Helper: scroll active content to top/bottom
   scroll_active_content <- function(edge = c("top", "bottom")) {

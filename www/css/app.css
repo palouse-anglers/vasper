@@ -124,6 +124,22 @@
   text-decoration: none;
 }
 
+.app-header-link.is-active {
+  color: inherit;
+  background: rgba(46, 125, 50, 0.16);
+  box-shadow: none;
+  font-weight: 600;
+}
+
+.app-header-link.is-active:hover,
+.app-header-link.is-active:focus {
+  background: rgba(46, 125, 50, 0.16);
+}
+
+.app-header-menu .action-button.is-active {
+  color: var(--bs-primary, #2e7d32);
+}
+
 .app-header-menu {
   flex: 0 0 auto;
 }

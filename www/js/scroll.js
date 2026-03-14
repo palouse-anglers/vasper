@@ -3,6 +3,7 @@
 
   var CHAT_BOTTOM_HANDLER_NAME = "scroll-chat-bottom";
   var SCROLL_EDGE_HANDLER_NAME = "scroll-to-edge";
+  var SET_ACTIVE_PAGE_HANDLER_NAME = "set-active-page";
   var READY_POLL_MS = 40;
   var MAX_READY_TRIES = 20;
   var SETTLE_DELAYS_MS = [50, 140];
@@ -26,6 +27,13 @@
 
   function normalizeEdge(edge) {
     return edge === "top" ? "top" : "bottom";
+  }
+
+  function navIdsForPage(page) {
+    if (!page || page === "chat") {
+      return ["hdr_chat", "nav_chat"];
+    }
+    return ["hdr_" + page, "nav_" + page];
   }
 
   function findChatRoot(payload) {
@@ -297,6 +305,30 @@
     scrollTargetsToEdge(root, edge);
   }
 
+  function handleSetActivePage(payload) {
+    var opts = normalizePayload(payload);
+    var ids = navIdsForPage(opts.page || "chat");
+
+    var activeNodes = document.querySelectorAll(
+      ".app-header-link.is-active, .app-header-menu .action-button.is-active"
+    );
+    activeNodes.forEach(function(node) {
+      node.classList.remove("is-active");
+      node.removeAttribute("aria-current");
+    });
+
+    ids.forEach(function(id) {
+      var node = document.getElementById(id);
+      if (!node) return;
+      node.classList.add("is-active");
+      if (id.indexOf("hdr_") === 0) {
+        node.setAttribute("aria-current", "page");
+      }
+    });
+
+    debugLog("handleSetActivePage", { page: opts.page || "chat", ids: ids });
+  }
+
   function setDebug(enabled) {
     DEBUG = !!enabled;
     debugLog("debug enabled");
@@ -339,7 +371,13 @@
 
     window.Shiny.addCustomMessageHandler(CHAT_BOTTOM_HANDLER_NAME, handleScrollChatBottom);
     window.Shiny.addCustomMessageHandler(SCROLL_EDGE_HANDLER_NAME, handleScrollToEdge);
-    debugLog("registered handlers", CHAT_BOTTOM_HANDLER_NAME, SCROLL_EDGE_HANDLER_NAME);
+    window.Shiny.addCustomMessageHandler(SET_ACTIVE_PAGE_HANDLER_NAME, handleSetActivePage);
+    debugLog(
+      "registered handlers",
+      CHAT_BOTTOM_HANDLER_NAME,
+      SCROLL_EDGE_HANDLER_NAME,
+      SET_ACTIVE_PAGE_HANDLER_NAME
+    );
   }
 
   exposeDebugApi();
