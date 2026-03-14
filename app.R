@@ -103,7 +103,8 @@ ui <- page_fillable(
             style = "max-width: 400px; padding: 1rem;",
             h5("Soil Health Reports"),
             p(
-              "Select a producer, year, and depth, then click the button",
+              "Select a producer, year range, and depth, then click the",
+              "button",
               "to generate a soil health report. Reports include tables,",
               "strip plots, and maps comparing the producer's fields to",
               "project averages."
@@ -135,15 +136,25 @@ ui <- page_fillable(
               choices = NULL,
               width = "100%"
             ),
-            selectInput(
-              "report_year",
-              "Year",
-              choices = NULL,
+            sliderInput(
+              "report_year_range",
+              label = div(
+                "Year Range",
+                tags$div(
+                  class = "form-text text-muted",
+                  "Range is based on available years for the selected producer."
+                )
+              ),
+              min = 2000,
+              max = 2000,
+              value = c(2000, 2000),
+              step = 1,
+              sep = "",
               width = "100%"
             ),
             selectInput(
               "report_depth",
-              "Depth",
+              "Depth (inches)",
               choices = NULL,
               width = "100%"
             ),
@@ -383,6 +394,19 @@ server <- function(input, output, session) {
   })
 
   # Populate report dropdowns from the database
+  format_year_label <- function(year_range) {
+    if (length(year_range) != 2 || any(is.na(year_range))) {
+      return(NA_character_)
+    }
+    start_year <- as.integer(year_range[1])
+    end_year <- as.integer(year_range[2])
+    if (start_year == end_year) {
+      as.character(start_year)
+    } else {
+      glue::glue("{start_year}-{end_year}")
+    }
+  }
+
   observe({
     producers <- DBI::dbGetQuery(
       con,
@@ -403,23 +427,39 @@ server <- function(input, output, session) {
       "SELECT DISTINCT year FROM soil_data WHERE producer_id = ? ORDER BY year",
       params = list(input$report_producer)
     )$year
-    updateSelectInput(
+
+    req(length(years) > 0)
+    year_min <- min(years, na.rm = TRUE)
+    year_max <- max(years, na.rm = TRUE)
+
+    updateSliderInput(
       session,
-      "report_year",
-      choices = years,
-      selected = max(years)
+      "report_year_range",
+      min = year_min,
+      max = year_max,
+      value = c(year_min, year_max),
+      step = 1
     )
   })
 
   observe({
-    req(input$report_producer, input$report_year)
+    req(input$report_producer, input$report_year_range)
+    req(length(input$report_year_range) == 2)
+
+    year_start <- as.integer(min(input$report_year_range))
+    year_end <- as.integer(max(input$report_year_range))
+
     depths_raw <- DBI::dbGetQuery(
       con,
       "SELECT DISTINCT depth FROM soil_data
-       WHERE producer_id = ? AND year = ?
+       WHERE producer_id = ?
+         AND year BETWEEN ? AND ?
        ORDER BY depth",
-      params = list(input$report_producer, as.integer(input$report_year))
+      params = list(input$report_producer, year_start, year_end)
     )$depth
+
+    req(length(depths_raw) > 0)
+
     updateSelectInput(
       session,
       "report_depth",
@@ -433,11 +473,18 @@ server <- function(input, output, session) {
     filename = function() {
       ext <- if (input$report_format == "all") "zip" else input$report_format
       depth_suffix <- gsub("-", "to", input$report_depth)
+      year_label <- format_year_label(input$report_year_range)
       glue::glue(
-        "{input$report_year}_{input$report_producer}_{depth_suffix}_Report.{ext}"
+        "{year_label}_{input$report_producer}_{depth_suffix}_Report.{ext}"
       )
     },
     content = function(file) {
+      req(input$report_year_range)
+      req(length(input$report_year_range) == 2)
+
+      year_start <- as.integer(min(input$report_year_range))
+      year_end <- as.integer(max(input$report_year_range))
+
       # Show a notification while rendering
       id <- showNotification(
         "Rendering report... this may take a moment.",
@@ -448,7 +495,8 @@ server <- function(input, output, session) {
 
       report_path <- render_report(
         producer_id = input$report_producer,
-        year = as.integer(input$report_year),
+        year_start = year_start,
+        year_end = year_end,
         depth = input$report_depth,
         format = input$report_format,
         con = con,

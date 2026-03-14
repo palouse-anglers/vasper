@@ -1,9 +1,10 @@
 ---
 title: "![](images/logo.png) Columbia County Soil Health Results"
-subtitle: "`r params$year` Report"
+subtitle: "`r if (params$year_start == params$year_end) params$year_start else paste0(params$year_start, '-', params$year_end)` Report"
 params:
   producer_id: "COLUMBIA CONSERVATION DISTRICT"
-  year: 2023
+  year_start: 2023
+  year_end: 2023
   depth: NULL
   data_path: "data/soil_data.csv"
   dictionary_path: "data/data_dictionary.csv"
@@ -234,6 +235,10 @@ results_long <- data |>
     )
   ) |>
   dplyr::arrange(group_order, measurement_order) |>
+  dplyr::filter(
+    year >= params$year_start,
+    year <= params$year_end
+  ) |>
   dplyr::filter(!is.na(value))
 ```
 
@@ -249,14 +254,24 @@ results_long$farm_name <- ifelse(
 
 # Subset to producer samples
 producer_samples <- results_long |>
-  dplyr::filter(producer_id == params$producer_id & year == params$year)
+  dplyr::filter(
+    producer_id == params$producer_id,
+    year >= params$year_start,
+    year <= params$year_end
+  )
+
+report_year_label <- if (params$year_start == params$year_end) {
+  as.character(params$year_start)
+} else {
+  glue::glue("{params$year_start}-{params$year_end}")
+}
 
 # Abort if there are no producer samples
 if (nrow(producer_samples) == 0) {
   cli::cli_abort(c(
     "i" = "Update {.code params} in YAML to a valid {.code producer_id} and\
-    {.code year} combo.",
-    "x" = "{.code {params$producer_id}} and {.code {params$year}} must exist\
+    {.code year_start/year_end} combo.",
+    "x" = "{.code {params$producer_id}} and {.code {report_year_label}} must exist\
      in your data."
   ))
 }
@@ -801,8 +816,20 @@ if (requireNamespace("downloadthis", quietly = TRUE)) {
 
 # Add a data download button if downloadthis is installed
 if (requireNamespace("downloadthis", quietly = TRUE)) {
+  download_results <- data |>
+    dplyr::filter(
+      producer_id == params$producer_id,
+      year >= params$year_start,
+      year <= params$year_end
+    )
+
+  if (!is.null(params$depth)) {
+    download_results <- download_results |>
+      dplyr::filter(depth == params$depth)
+  }
+
   list(
-    results = dplyr::filter(data, producer_id == params$producer_id),
+    results = download_results,
     measurement_dictionary = dictionary[
       ,
       c(
@@ -813,7 +840,7 @@ if (requireNamespace("downloadthis", quietly = TRUE)) {
     ]
   ) |>
     downloadthis::download_this(
-      output_name = glue::glue("{params$year}-soils-data"),
+      output_name = glue::glue("{report_year_label}-soils-data"),
       output_extension = ".xlsx",
       button_label = "Download as Excel spreadsheet",
       button_type = "success"

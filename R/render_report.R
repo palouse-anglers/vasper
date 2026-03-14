@@ -1,11 +1,13 @@
 #' Render soil health reports
 #'
-#' Generates an HTML and/or DOCX soil health report for a given producer and year.
+#' Generates an HTML and/or DOCX soil health report for a given producer and
+#' year range.
 #' Data is read from database tables and written to temporary CSV files for
 #' the Quarto rendering process.
 #'
 #' @param producer_id Character. The producer ID to filter on.
-#' @param year Integer. The reporting year.
+#' @param year_start Integer. Inclusive start year for the reporting window.
+#' @param year_end Integer. Inclusive end year for the reporting window.
 #' @param depth Character. The depth layer to filter on (e.g., "0-3", "6-12").
 #'   NULL = no filter (all depths).
 #' @param format Character. "html", "docx", or "all" (both formats, returned
@@ -24,7 +26,8 @@
 #'   `format = "all"`, returns the path to a zip file containing both outputs.
 render_report <- function(
   producer_id = "COLUMBIA CONSERVATION DISTRICT",
-  year = 2023,
+  year_start = 2023,
+  year_end = 2023,
   depth = NULL,
   format = c("html", "docx", "all"),
   con = NULL,
@@ -33,6 +36,22 @@ render_report <- function(
   output_dir = "."
 ) {
   format <- match.arg(format)
+  year_start <- as.integer(year_start)
+  year_end <- as.integer(year_end)
+
+  if (is.na(year_start) || is.na(year_end)) {
+    stop("Both 'year_start' and 'year_end' must be valid integers.")
+  }
+
+  if (year_start > year_end) {
+    stop("'year_start' must be less than or equal to 'year_end'.")
+  }
+
+  year_label <- if (year_start == year_end) {
+    as.character(year_start)
+  } else {
+    glue::glue("{year_start}-{year_end}")
+  }
 
   # Validate database connection
   if (is.null(con) || !inherits(con, "DBIConnection")) {
@@ -73,7 +92,7 @@ render_report <- function(
 
   # Build output base name (used for single-format renders)
   depth_suffix <- if (!is.null(depth)) gsub("-", "to", depth) else "AllDepths"
-  base_name <- glue::glue("{year}_{producer_id}_{depth_suffix}_Report")
+  base_name <- glue::glue("{year_label}_{producer_id}_{depth_suffix}_Report")
 
   # Common render args.
   # execute_dir is set to the template directory so that all relative paths
@@ -84,7 +103,8 @@ render_report <- function(
     execute_dir = template_dir,
     execute_params = list(
       producer_id = producer_id,
-      year = year,
+      year_start = year_start,
+      year_end = year_end,
       depth = depth,
       data_path = data_path,
       dictionary_path = dictionary_path
