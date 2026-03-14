@@ -10,6 +10,25 @@ hamburger_links <- lapply(names(app_pages), function(key) {
   )
 })
 
+# Build compact header links (shown as space allows; overflow handled by menu)
+header_links <- c(
+  list(
+    actionLink(
+      "hdr_chat",
+      label = tagList(icon("comments"), "Chat"),
+      class = "app-header-link"
+    )
+  ),
+  lapply(names(app_pages), function(key) {
+    pg <- app_pages[[key]]
+    actionLink(
+      paste0("hdr_", key),
+      label = tagList(icon(pg$icon), pg$title),
+      class = "app-header-link"
+    )
+  })
+)
+
 ui <- page_fillable(
   title = "Vasper",
   theme = app_theme,
@@ -17,24 +36,35 @@ ui <- page_fillable(
 
   tags$head(
     tags$link(rel = "stylesheet", href = "css/app.css"),
-    tags$script(src = "js/chat.js")
+    tags$script(src = "js/scroll.js")
   ),
 
-  # Hamburger menu (fixed top-right)
+  # Header with title + compact navigation menu
   div(
-    class = "hamburger-btn",
-    dropdown(
-      actionLink(
-        "nav_chat",
-        label = tagList(icon("comments"), "Chat"),
-        class = "d-block py-1"
-      ),
-      !!!hamburger_links,
-      icon = icon("bars"),
-      size = "sm",
-      status = "outline-secondary",
-      right = TRUE,
-      width = "200px"
+    class = "app-header",
+    div(
+      class = "app-header-main",
+      div(class = "app-header-title", "Vasper"),
+      div(
+        class = "app-header-links",
+        !!!header_links
+      )
+    ),
+    div(
+      class = "app-header-menu",
+      dropdown(
+        actionLink(
+          "nav_chat",
+          label = tagList(icon("comments"), "Chat"),
+          class = "d-block py-1"
+        ),
+        !!!hamburger_links,
+        icon = icon("bars"),
+        size = "sm",
+        status = "outline-secondary",
+        right = TRUE,
+        width = "200px"
+      )
     )
   ),
 
@@ -63,13 +93,12 @@ ui <- page_fillable(
     # Pages view
     nav_panel_hidden(
       value = "pages",
-      navset_pill(
+      navset_hidden(
         id = "pages_nav",
 
         # Reports
-        nav_panel(
-          title = "Reports",
-          icon = icon("file-alt"),
+        nav_panel_hidden(
+          value = "reports",
           div(
             style = "max-width: 400px; padding: 1rem;",
             h5("Soil Health Reports"),
@@ -129,9 +158,8 @@ ui <- page_fillable(
         ),
 
         # Soil Data
-        nav_panel(
-          title = "Soil Data",
-          icon = icon("flask"),
+        nav_panel_hidden(
+          value = "soil_data",
           card(
             card_header("Soil Chemistry Samples"),
             card_body(
@@ -148,9 +176,19 @@ ui <- page_fillable(
   div(
     class = "bottom-bar",
     actionLink(
+      "scroll_top",
+      label = "Top",
+      icon = icon("arrow-up")
+    ),
+    actionLink(
       "toggle_view",
       label = "Hide chat",
       icon = icon("eye-slash")
+    ),
+    actionLink(
+      "scroll_bottom",
+      label = "Bottom",
+      icon = icon("arrow-down")
     )
   )
 )
@@ -166,7 +204,7 @@ server <- function(input, output, session) {
     active_page(page_key)
     last_page(page_key)
     nav_select("app_view", "pages")
-    nav_select("pages_nav", app_pages[[page_key]]$title)
+    nav_select("pages_nav", page_key)
     updateActionButton(
       session,
       "toggle_view",
@@ -200,6 +238,34 @@ server <- function(input, output, session) {
     )
   }
 
+  # Helper: scroll active content to top/bottom
+  scroll_active_content <- function(edge = c("top", "bottom")) {
+    edge <- match.arg(edge)
+
+    # Chat view: keep using chat-specific bottom logic for reliability
+    if (is.null(active_page())) {
+      if (edge == "bottom") {
+        session$sendCustomMessage(
+          "scroll-chat-bottom",
+          list(id = "main_chat", phase = "after")
+        )
+      } else {
+        session$sendCustomMessage(
+          "scroll-to-edge",
+          list(id = "main_chat", edge = edge)
+        )
+      }
+      return(invisible(NULL))
+    }
+
+    # Feature pages: scroll currently active tab content.
+    session$sendCustomMessage(
+      "scroll-to-edge",
+      list(selector = "#app_view .tab-pane.active", edge = edge)
+    )
+    invisible(NULL)
+  }
+
   # Toggle link: swap between chat and last-viewed page
   observeEvent(input$toggle_view, {
     if (is.null(active_page())) {
@@ -209,14 +275,34 @@ server <- function(input, output, session) {
     }
   })
 
+  observeEvent(input$scroll_top, {
+    scroll_active_content("top")
+  })
+
+  observeEvent(input$scroll_bottom, {
+    scroll_active_content("bottom")
+  })
+
   # Hamburger menu: chat link
   observeEvent(input$nav_chat, {
+    navigate_to_chat()
+  })
+
+  # Header links: chat
+  observeEvent(input$hdr_chat, {
     navigate_to_chat()
   })
 
   # Hamburger menu: generate observers for each page
   lapply(names(app_pages), function(key) {
     observeEvent(input[[paste0("nav_", key)]], {
+      navigate_to(key)
+    })
+  })
+
+  # Header links: generate observers for each page
+  lapply(names(app_pages), function(key) {
+    observeEvent(input[[paste0("hdr_", key)]], {
       navigate_to(key)
     })
   })

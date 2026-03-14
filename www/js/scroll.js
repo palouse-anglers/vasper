@@ -1,7 +1,8 @@
 (function() {
   "use strict";
 
-  var HANDLER_NAME = "scroll-chat-bottom";
+  var CHAT_BOTTOM_HANDLER_NAME = "scroll-chat-bottom";
+  var SCROLL_EDGE_HANDLER_NAME = "scroll-to-edge";
   var READY_POLL_MS = 40;
   var MAX_READY_TRIES = 20;
   var SETTLE_DELAYS_MS = [50, 140];
@@ -23,6 +24,10 @@
     return payload || {};
   }
 
+  function normalizeEdge(edge) {
+    return edge === "top" ? "top" : "bottom";
+  }
+
   function findChatRoot(payload) {
     var opts = normalizePayload(payload);
     if (!opts.id) return null;
@@ -30,6 +35,27 @@
       root: document.getElementById(opts.id),
       phase: opts.phase || "after"
     };
+  }
+
+  function findRootFromPayload(payload) {
+    var opts = normalizePayload(payload);
+
+    if (opts.id) {
+      return document.getElementById(opts.id);
+    }
+
+    if (opts.selector) {
+      var nodes = document.querySelectorAll(opts.selector);
+      if (!nodes || nodes.length === 0) return null;
+
+      // Prefer the deepest visible match when multiple active tab panes exist.
+      for (var i = nodes.length - 1; i >= 0; i -= 1) {
+        if (nodes[i].offsetParent !== null) return nodes[i];
+      }
+      return nodes[nodes.length - 1];
+    }
+
+    return null;
   }
 
   function clearPreviousCleanup(root) {
@@ -89,16 +115,27 @@
     return panelVisible && root.offsetParent !== null;
   }
 
-  function scrollTargetsToBottom(root) {
+  function scrollTargetsToEdge(root, edge) {
+    var normalizedEdge = normalizeEdge(edge);
     var targets = getScrollTargets(root);
     targets.forEach(function(target) {
-      target.scrollTop = target.scrollHeight;
+      target.scrollTop = normalizedEdge === "top" ? 0 : target.scrollHeight;
     });
-    debugLog("scrollTargetsToBottom", {
+    debugLog("scrollTargetsToEdge", {
+      edge: normalizedEdge,
       targetCount: targets.length,
       targets: describeTargets(root)
     });
-    window.scrollTo(0, document.body.scrollHeight);
+    window.scrollTo(0, normalizedEdge === "top" ? 0 : document.body.scrollHeight);
+  }
+
+  function scrollDocumentToEdge(edge) {
+    var normalizedEdge = normalizeEdge(edge);
+    var doc = document.scrollingElement || document.documentElement;
+    if (doc) {
+      doc.scrollTop = normalizedEdge === "top" ? 0 : doc.scrollHeight;
+    }
+    window.scrollTo(0, normalizedEdge === "top" ? 0 : document.body.scrollHeight);
   }
 
   function createScrollController(root) {
@@ -159,21 +196,21 @@
     function runSettleSequence() {
       attachCancelOnUserInteraction();
 
-      scrollTargetsToBottom(root);
+      scrollTargetsToEdge(root, "bottom");
       requestAnimationFrame(function() {
-        if (!canceled) scrollTargetsToBottom(root);
+        if (!canceled) scrollTargetsToEdge(root, "bottom");
       });
 
       SETTLE_DELAYS_MS.forEach(function(ms) {
         schedule(function() {
-          scrollTargetsToBottom(root);
+          scrollTargetsToEdge(root, "bottom");
         }, ms);
       });
 
       var scroller = getMessageScroller(root);
       if (scroller && typeof ResizeObserver !== "undefined") {
         resizeObserver = new ResizeObserver(function() {
-          if (!canceled) scrollTargetsToBottom(root);
+          if (!canceled) scrollTargetsToEdge(root, "bottom");
         });
         resizeObserver.observe(scroller);
         schedule(clearAll, CLEAR_DELAY_WITH_RESIZE_MS);
@@ -230,13 +267,34 @@
 
     // Pre-phase: best effort before panel is shown.
     if (phase === "pre") {
-      scrollTargetsToBottom(root);
+      scrollTargetsToEdge(root, "bottom");
       return;
     }
 
     var controller = createScrollController(root);
     root._chatBottomCleanup = controller.clearAll;
     controller.waitUntilReadyThenRun();
+  }
+
+  function handleScrollToEdge(payload) {
+    var opts = normalizePayload(payload);
+    var edge = normalizeEdge(opts.edge);
+    var root = findRootFromPayload(opts);
+
+    debugLog("handleScrollToEdge", {
+      edge: edge,
+      hasRoot: !!root,
+      id: opts.id,
+      selector: opts.selector
+    });
+
+    if (!root) {
+      scrollDocumentToEdge(edge);
+      return;
+    }
+
+    clearPreviousCleanup(root);
+    scrollTargetsToEdge(root, edge);
   }
 
   function setDebug(enabled) {
@@ -279,8 +337,9 @@
     }
     window.__vasperScrollChatBottomHandlerRegistered = true;
 
-    window.Shiny.addCustomMessageHandler(HANDLER_NAME, handleScrollChatBottom);
-    debugLog("registered handler", HANDLER_NAME);
+    window.Shiny.addCustomMessageHandler(CHAT_BOTTOM_HANDLER_NAME, handleScrollChatBottom);
+    window.Shiny.addCustomMessageHandler(SCROLL_EDGE_HANDLER_NAME, handleScrollToEdge);
+    debugLog("registered handlers", CHAT_BOTTOM_HANDLER_NAME, SCROLL_EDGE_HANDLER_NAME);
   }
 
   exposeDebugApi();
