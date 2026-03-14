@@ -203,10 +203,19 @@ get_n_day_forecast <- function(
 #' @param con Database connection
 #' @param tool_name Name of the tool (e.g., "forecast", "historical")
 #' @param param_hash Parameter hash for table naming
+#' @param table_label User-facing label for the table metadata registry
+#' @param add_data_view Whether this table should be added to Data views
 #'
 #' @return List with table metadata and sample rows
 #' @export
-write_weather_to_db <- function(data, con, tool_name, param_hash) {
+write_weather_to_db <- function(
+  data,
+  con,
+  tool_name,
+  param_hash,
+  table_label,
+  add_data_view = TRUE
+) {
   # Construct table name
   table_name <- paste0("weather_", tool_name, "_", param_hash)
 
@@ -223,6 +232,22 @@ write_weather_to_db <- function(data, con, tool_name, param_hash) {
   row_count <- nrow(data)
   columns <- names(data)
 
+  # Upsert label metadata (required for Data page selectors)
+  upsert_table_metadata(
+    con = con,
+    table_name = table_name,
+    table_label = table_label,
+    source = paste0("weather_", tool_name),
+    row_count = row_count,
+    column_count = length(columns),
+    is_active = TRUE
+  )
+
+  if (isTRUE(add_data_view) && exists("data_view_queue", inherits = TRUE)) {
+    queued <- get("data_view_queue", inherits = TRUE)
+    queued$table_names <- unique(c(queued$table_names, table_name))
+  }
+
   # Get 5 sample rows
   sample_rows <- data |>
     head(5) |>
@@ -237,6 +262,8 @@ write_weather_to_db <- function(data, con, tool_name, param_hash) {
   # Return metadata as JSON-serializable list
   list(
     table_name = table_name,
+    table_label = table_label,
+    add_data_view = isTRUE(add_data_view),
     row_count = row_count,
     columns = columns,
     sample_rows = sample_data,

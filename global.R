@@ -64,6 +64,9 @@ dbExecute(
   "CREATE TABLE data_dictionary AS SELECT * FROM read_csv_auto('data/data_dictionary.csv')"
 )
 
+# Initialize metadata registry for user-facing data labels
+ensure_table_metadata(con)
+
 
 # Extract Sample Locations and write to DuckDB ----
 dbExecute(
@@ -80,6 +83,58 @@ dbExecute(
   WHERE latitude IS NOT NULL AND longitude IS NOT NULL
   GROUP BY latitude, longitude
 "
+)
+
+# Seed metadata labels for startup tables
+upsert_table_metadata(
+  con = con,
+  table_name = "soil_data",
+  table_label = "Soil Data",
+  source = "startup",
+  row_count = DBI::dbGetQuery(con, "SELECT COUNT(*) AS n FROM soil_data")$n[[
+    1
+  ]],
+  column_count = length(DBI::dbListFields(con, "soil_data")),
+  is_active = TRUE
+)
+
+upsert_table_metadata(
+  con = con,
+  table_name = "data_dictionary",
+  table_label = "Data Dictionary",
+  source = "startup",
+  row_count = DBI::dbGetQuery(
+    con,
+    "SELECT COUNT(*) AS n FROM data_dictionary"
+  )$n[[1]],
+  column_count = length(DBI::dbListFields(con, "data_dictionary")),
+  is_active = TRUE
+)
+
+upsert_table_metadata(
+  con = con,
+  table_name = "sample_locations",
+  table_label = "Sample Locations",
+  source = "startup",
+  row_count = DBI::dbGetQuery(
+    con,
+    "SELECT COUNT(*) AS n FROM sample_locations"
+  )$n[[1]],
+  column_count = length(DBI::dbListFields(con, "sample_locations")),
+  is_active = TRUE
+)
+
+upsert_table_metadata(
+  con = con,
+  table_name = "table_metadata",
+  table_label = "Table Metadata",
+  source = "system",
+  row_count = DBI::dbGetQuery(
+    con,
+    "SELECT COUNT(*) AS n FROM table_metadata"
+  )$n[[1]],
+  column_count = length(DBI::dbListFields(con, "table_metadata")),
+  is_active = TRUE
 )
 
 # Helper: Hash Tool Parameters ----
@@ -100,7 +155,9 @@ get_weather_forecast <- tool(
     latitude,
     longitude,
     n_days = 7,
-    variables = eval(as.list(args(get_n_day_forecast))$variables)
+    variables = eval(as.list(args(get_n_day_forecast))$variables),
+    table_label,
+    add_data_view = TRUE
   ) {
     # Hash parameters for table naming
     param_hash <- hash_tool_params(
@@ -123,7 +180,9 @@ get_weather_forecast <- tool(
       data = weather_data,
       con = con,
       tool_name = "forecast",
-      param_hash = param_hash
+      param_hash = param_hash,
+      table_label = table_label,
+      add_data_view = add_data_view
     )
   },
   name = "get_weather_forecast",
@@ -137,6 +196,13 @@ get_weather_forecast <- tool(
     ),
     n_days = type_number(
       "Number of days to forecast (default 7, max 16)",
+      required = FALSE
+    ),
+    table_label = type_string(
+      "Required user-facing label for the output table in the Data page"
+    ),
+    add_data_view = type_boolean(
+      "Whether to add this table as an open Data view (default TRUE)",
       required = FALSE
     ),
     variables = type_array(
@@ -153,7 +219,9 @@ get_weather_historical <- tool(
     latitude,
     longitude,
     date_range,
-    variables = eval(as.list(args(get_weather_data))$variables)
+    variables = eval(as.list(args(get_weather_data))$variables),
+    table_label,
+    add_data_view = TRUE
   ) {
     # Hash parameters for table naming
     param_hash <- hash_tool_params(
@@ -178,7 +246,9 @@ get_weather_historical <- tool(
       data = weather_data,
       con = con,
       tool_name = "historical",
-      param_hash = param_hash
+      param_hash = param_hash,
+      table_label = table_label,
+      add_data_view = add_data_view
     )
   },
   name = "get_weather_historical",
@@ -193,6 +263,13 @@ get_weather_historical <- tool(
     date_range = type_array(
       type_string(),
       "Array of two dates in YYYY-MM-DD format: [start_date, end_date]"
+    ),
+    table_label = type_string(
+      "Required user-facing label for the output table in the Data page"
+    ),
+    add_data_view = type_boolean(
+      "Whether to add this table as an open Data view (default TRUE)",
+      required = FALSE
     ),
     variables = type_array(
       type_string(),
@@ -223,7 +300,9 @@ main_chat <- chat(
     "\nWeather tools:",
     "- get_weather_forecast: Gets forecast data (up to 16 days)",
     "- get_weather_historical: Gets historical weather data",
+    "Each weather tool call must include a descriptive table_label for the Data page.",
     "Both weather tools write data to the same DuckDB database that contains soil_data and sample_locations.",
+    "Table labels are stored in the table_metadata table with columns table_name and table_label.",
     "Weather data tables are named weather_forecast_HASH or weather_historical_HASH.",
     "After calling a weather tool, you can query across weather and soil data using SQL.",
     "\nSoil data is in the 'soil_data' table (wide format, one row per sample) with metadata columns:",
@@ -241,12 +320,16 @@ main_chat <- chat(
   echo = "all"
 )
 
+# Queue table names that should be auto-opened in Data views.
+data_view_queue <- new.env(parent = emptyenv())
+data_view_queue$table_names <- character()
+
 # Page Registry ----
 # Single source of truth for all navigable pages.
 # Add new pages here — hamburger menu, overlay panels, and tools all read from it.
 app_pages <- list(
   reports = list(title = "Reports", icon = "file-alt"),
-  soil_data = list(title = "Soil Data", icon = "flask")
+  data = list(title = "Data", icon = "database")
 )
 
 # Register tools

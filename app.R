@@ -3,7 +3,7 @@ source("global.R")
 chat_welcome_message <- paste0(
   "I'm Vasper, your soil health and weather assistant. ",
   "I can fetch weather forecasts and historical data, navigate ",
-  "app pages, and help you explore soil data in your region.",
+  "app pages, and help you explore data in your region.",
   "<div class='suggestion'>What's the 7-day forecast for Columbia County?</div>",
   "<div class='suggestion'>Get last year's rainfall for Columbia County</div>",
   "<div class='suggestion'>Summarize wheat yields in spring in Columbia County</div>"
@@ -171,16 +171,10 @@ ui <- page_fillable(
           )
         ),
 
-        # Soil Data
+        # Data
         nav_panel_hidden(
-          value = "soil_data",
-          card(
-            card_header("Soil Chemistry Samples"),
-            card_body(
-              class = "p-1",
-              DTOutput("soil_table")
-            )
-          )
+          value = "data",
+          data_page_manager_ui("data_page")
         )
       )
     )
@@ -414,67 +408,101 @@ server <- function(input, output, session) {
 
   # -- Existing functionality --
 
-  # Soil Data Table
-  soil_data_cache <- reactiveVal(NULL)
+  # Data page modules refresh off this nonce whenever chat/tools modify DB.
+  data_refresh_nonce <- reactiveVal(0)
 
-  refresh_soil_data_cache <- function() {
-    dat <- tryCatch(
-      DBI::dbGetQuery(con, "SELECT * FROM soil_data"),
-      error = function(e) {
-        fallback <- tibble::tibble(
-          status = "Soil data temporarily unavailable",
-          details = conditionMessage(e)
-        )
-        fallback
-      }
-    )
-    soil_data_cache(dat)
-    invisible(NULL)
-  }
-
-  # Load once at startup so the table is ready even if the panel is hidden.
-  refresh_soil_data_cache()
-
-  output$soil_table <- renderDT(
-    req(soil_data_cache()),
-    options = list(pageLength = 15, scrollX = TRUE)
+  data_page_api <- data_page_manager_server(
+    id = "data_page",
+    con = con,
+    refresh_nonce_r = reactive(data_refresh_nonce()),
+    include_tables = c("table_metadata"),
+    ignore_tables = character()
   )
 
-  # Keep output alive when hidden so first reveal does not depend on server timing.
-  outputOptions(output, "soil_table", suspendWhenHidden = FALSE)
+  get_data_table_metadata <- tool(
+    function() {
+      md <- data_page_api$get_metadata()
+      if (nrow(md) == 0) {
+        return(list(tables = list()))
+      }
+
+      list(
+        tables = purrr::transpose(as.list(md))
+      )
+    },
+    name = "get_data_table_metadata",
+    description = paste(
+      "Get available data tables from table_metadata with minimal details",
+      "(table_name, table_label, row_count, column_count)."
+    )
+  )
+
+  main_chat$register_tool(get_data_table_metadata)
+
+  # Auto-open Data views when tools return add_data_view = TRUE and a table_name.
+  main_chat$on_tool_result(function(result) {
+    deep_extract <- function(x, key) {
+      out <- list()
+      if (is.list(x)) {
+        if (!is.null(names(x)) && key %in% names(x)) {
+          out <- c(out, list(x[[key]]))
+        }
+        for (el in x) {
+          out <- c(out, deep_extract(el, key))
+        }
+      }
+      out
+    }
+
+    add_flags <- unlist(
+      deep_extract(result, "add_data_view"),
+      use.names = FALSE
+    )
+    table_names <- unlist(deep_extract(result, "table_name"), use.names = FALSE)
+    table_names <- table_names[nzchar(table_names)]
+
+    add_flags <- suppressWarnings(as.logical(add_flags))
+
+    if (!any(add_flags, na.rm = TRUE) || length(table_names) == 0) {
+      return(invisible(NULL))
+    }
+
+    # Refresh metadata first so newly created tables are available to add_views.
+    data_refresh_nonce(data_refresh_nonce() + 1)
+    data_page_api$add_views(unique(table_names))
+    data_refresh_nonce(data_refresh_nonce() + 1)
+    invisible(NULL)
+  })
+
+  # Fallback path: consume tool-requested Data views from global queue.
+  observe({
+    invalidateLater(250, session)
+
+    req(exists("data_view_queue", inherits = TRUE))
+    queued <- get("data_view_queue", inherits = TRUE)
+    table_names <- unique(queued$table_names)
+
+    if (length(table_names) == 0) {
+      return(invisible(NULL))
+    }
+
+    queued$table_names <- character()
+
+    data_refresh_nonce(data_refresh_nonce() + 1)
+    data_page_api$add_views(table_names)
+    data_refresh_nonce(data_refresh_nonce() + 1)
+
+    invisible(NULL)
+  })
 
   # Main AI Chat with Weather Tools
-  # NOTE: non-streaming async keeps the Shiny session more responsive to
-  # navigation/events than token-by-token streaming in a single callback.
-  chat_busy <- reactiveVal(FALSE)
-
+  # Use content streaming so shinychat can render tool calls inline.
   observeEvent(input$main_chat_user_input, {
-    req(!chat_busy())
-
-    chat_busy(TRUE)
-    user_message <- input$main_chat_user_input
-
-    main_chat$chat_async(user_message) |>
-      promises::then(function(response) {
-        chat_append("main_chat", as.character(response))
-        NULL
-      }) |>
-      promises::catch(function(err) {
-        chat_append(
-          "main_chat",
-          paste0(
-            "I hit an error while generating a response: ",
-            conditionMessage(err)
-          )
-        )
-        NULL
-      }) |>
-      promises::finally(function() {
-        # Refresh cache after tool/chat work completes in case DB writes occurred.
-        refresh_soil_data_cache()
-        chat_busy(FALSE)
-        NULL
-      })
+    stream <- main_chat$stream_async(
+      input$main_chat_user_input,
+      stream = "content"
+    )
+    chat_append("main_chat", stream)
   })
 
   # Populate report dropdowns from the database

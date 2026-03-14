@@ -215,12 +215,20 @@ describe("Database Integration", {
       data = test_data,
       con = con,
       tool_name = "forecast",
-      param_hash = "test1234"
+      param_hash = "test1234",
+      table_label = "Test Forecast Table"
     )
 
     expect_true("table_name" %in% names(result))
     expect_equal(result$row_count, 7)
     expect_true(DBI::dbExistsTable(con, result$table_name))
+
+    md <- get_table_metadata(con, include_tables = c("table_metadata"))
+    expect_true(result$table_name %in% md$table_name)
+    expect_equal(
+      md$table_label[match(result$table_name, md$table_name)],
+      "Test Forecast Table"
+    )
 
     # Cleanup
     DBI::dbDisconnect(con)
@@ -237,10 +245,22 @@ describe("Database Integration", {
     )
 
     # Write once
-    result1 <- write_weather_to_db(test_data, con, "forecast", "cachtest")
+    result1 <- write_weather_to_db(
+      test_data,
+      con,
+      "forecast",
+      "cachtest",
+      "Cached Forecast"
+    )
 
     # Try to write again - should use cached version
-    result2 <- write_weather_to_db(test_data, con, "forecast", "cachtest")
+    result2 <- write_weather_to_db(
+      test_data,
+      con,
+      "forecast",
+      "cachtest",
+      "Cached Forecast"
+    )
 
     expect_equal(result1$table_name, result2$table_name)
 
