@@ -816,6 +816,16 @@ if (requireNamespace("downloadthis", quietly = TRUE)) {
 
 # Add a data download button if downloadthis is installed
 if (requireNamespace("downloadthis", quietly = TRUE)) {
+  depth_suffix <- if (!is.null(params$depth)) {
+    gsub("-", "to", params$depth)
+  } else {
+    "AllDepths"
+  }
+
+  report_file_stem <- glue::glue(
+    "{report_year_label}_{params$producer_id}_{depth_suffix}_Report"
+  )
+
   download_results <- data |>
     dplyr::filter(
       producer_id == params$producer_id,
@@ -840,7 +850,7 @@ if (requireNamespace("downloadthis", quietly = TRUE)) {
     ]
   ) |>
     downloadthis::download_this(
-      output_name = glue::glue("{report_year_label}-soils-data"),
+      output_name = report_file_stem,
       output_extension = ".xlsx",
       button_label = "Download as Excel spreadsheet",
       button_type = "success"
