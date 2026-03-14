@@ -1,5 +1,14 @@
 source("global.R")
 
+chat_welcome_message <- paste0(
+  "I'm Vasper, your soil health and weather assistant. ",
+  "I can fetch weather forecasts and historical data, navigate ",
+  "app pages, and help you explore soil data in your region.",
+  "<div class='suggestion'>What's the 7-day forecast for Columbia County?</div>",
+  "<div class='suggestion'>Get last year's rainfall for Columbia County</div>",
+  "<div class='suggestion'>Summarize wheat yields in spring in Columbia County</div>"
+)
+
 # Build hamburger menu links from app_pages registry
 hamburger_links <- lapply(names(app_pages), function(key) {
   pg <- app_pages[[key]]
@@ -78,14 +87,7 @@ ui <- page_fillable(
       chat_ui(
         "main_chat",
         messages = list(
-          paste0(
-            "I'm Vasper, your soil health and weather assistant. ",
-            "I can fetch weather forecasts and historical data, navigate ",
-            "app pages, and help you explore soil data in your region.",
-            "<div class='suggestion'>What's the 7-day forecast for Columbia County?</div>",
-            "<div class='suggestion'>Get last year's rainfall for Columbia County</div>",
-            "<div class='suggestion'>Summarize wheat yields in spring in Columbia County</div>"
-          )
+          chat_welcome_message
         )
       )
     ),
@@ -191,14 +193,24 @@ ui <- page_fillable(
       label = "Top",
       icon = icon("arrow-up")
     ),
-    actionLink(
-      "toggle_view",
-      label = "Hide chat",
-      icon = icon("eye-slash")
+    div(
+      class = "bottom-bar-center",
+      actionLink(
+        "toggle_view",
+        label = "Hide chat",
+        icon = icon("eye-slash"),
+        class = "bottom-bar-mid-link"
+      ),
+      actionLink(
+        "clear_chat",
+        label = "Clear chat",
+        icon = icon("trash"),
+        class = "bottom-bar-mid-link"
+      )
     ),
     actionLink(
       "scroll_bottom",
-      label = "Bottom",
+      label = "End",
       icon = icon("arrow-down")
     )
   )
@@ -306,6 +318,13 @@ server <- function(input, output, session) {
 
   observeEvent(input$scroll_bottom, {
     scroll_active_content("bottom")
+  })
+
+  observeEvent(input$clear_chat, {
+    main_chat$set_turns(list())
+    chat_clear("main_chat")
+    chat_append("main_chat", chat_welcome_message)
+    navigate_to_chat()
   })
 
   # Hamburger menu: chat link

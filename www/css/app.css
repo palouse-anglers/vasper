@@ -7,6 +7,7 @@
   display: grid;
   grid-template-columns: 1fr auto 1fr;
   align-items: center;
+  gap: 0.4rem;
   z-index: 200;
   border-top: 1px solid var(--bs-border-color, #dee2e6);
   padding: 0.4rem 0.75rem;
@@ -17,15 +18,35 @@
   white-space: nowrap;
 }
 
-.bottom-bar .action-button:nth-child(1) {
+.bottom-bar > .action-button:first-child {
   justify-self: start;
 }
 
-.bottom-bar .action-button:nth-child(2) {
+.bottom-bar-center {
+  display: inline-flex;
+  align-items: center;
+  gap: 0;
   justify-self: center;
 }
 
-.bottom-bar .action-button:nth-child(3) {
+.bottom-bar-mid-link {
+  padding-inline: 0.2rem;
+}
+
+.bottom-bar-center #clear_chat {
+  margin-left: 0.8rem;
+  padding-left: 0.8rem;
+  border-left: 1px solid var(--bs-border-color, #dee2e6);
+}
+
+@media (max-width: 640px) {
+  .bottom-bar-center #clear_chat {
+    margin-left: 1.05rem;
+    padding-left: 1.05rem;
+  }
+}
+
+.bottom-bar > .action-button:last-child {
   justify-self: end;
 }
 /* Chat view: no horizontal scrolling; wrap long content instead */
