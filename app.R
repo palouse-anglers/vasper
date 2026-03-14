@@ -17,21 +17,7 @@ ui <- page_fillable(
 
   tags$head(tags$style(HTML(
     "
-    /* Bottom bar: toggle link */
-    .bottom-bar {
-      border-top: 1px solid var(--bs-border-color, #dee2e6);
-      padding: 0.4rem 0.75rem;
-      text-align: center;
-      background: var(--bs-body-bg, white);
-    }
-    /* Hamburger button */
-    .hamburger-btn {
-      position: fixed;
-      top: 8px;
-      right: 8px;
-      z-index: 200;
-    }
-    /* Footer: sticky to viewport bottom */
+    /* Footer: fixed to viewport bottom, always visible */
     .bottom-bar {
       position: fixed;
       bottom: 0;
@@ -43,8 +29,17 @@ ui <- page_fillable(
       text-align: center;
       background: var(--bs-body-bg, white);
     }
-    /* Shrink fill container so content stops above the footer */
-    html { height: calc(100vh - 2.5rem); }
+    /* Breathing room so fixed footer never covers content */
+    .tab-pane > * {
+      padding-bottom: 3rem;
+    }
+    /* Hamburger button */
+    .hamburger-btn {
+      position: fixed;
+      top: 8px;
+      right: 8px;
+      z-index: 200;
+    }
   "
   ))),
 
