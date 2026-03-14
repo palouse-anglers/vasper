@@ -45,7 +45,8 @@ ui <- page_fillable(
 
   tags$head(
     tags$link(rel = "stylesheet", href = "css/app.css"),
-    tags$script(src = "js/scroll.js")
+    tags$script(src = "js/scroll.js"),
+    tags$script(src = "js/navigation.js")
   ),
 
   # Header with title + compact navigation menu
@@ -351,6 +352,22 @@ server <- function(input, output, session) {
     })
   })
 
+  # Client-side optimistic navigation fallback.
+  # While server is busy, JS can switch visible panes immediately and queue
+  # this event; once processed, align server-side reactive state.
+  observeEvent(input$client_nav_request, {
+    req(input$client_nav_request$page)
+    page <- input$client_nav_request$page
+    if (identical(page, "chat")) {
+      navigate_to_chat()
+      return(invisible(NULL))
+    }
+    if (page %in% names(app_pages)) {
+      navigate_to(page)
+    }
+    invisible(NULL)
+  })
+
   # show_page tool: registered per-session so it can call navigate_to()
   all_pages <- c("chat", names(app_pages))
   show_page <- tool(
@@ -398,18 +415,66 @@ server <- function(input, output, session) {
   # -- Existing functionality --
 
   # Soil Data Table
+  soil_data_cache <- reactiveVal(NULL)
+
+  refresh_soil_data_cache <- function() {
+    dat <- tryCatch(
+      DBI::dbGetQuery(con, "SELECT * FROM soil_data"),
+      error = function(e) {
+        fallback <- tibble::tibble(
+          status = "Soil data temporarily unavailable",
+          details = conditionMessage(e)
+        )
+        fallback
+      }
+    )
+    soil_data_cache(dat)
+    invisible(NULL)
+  }
+
+  # Load once at startup so the table is ready even if the panel is hidden.
+  refresh_soil_data_cache()
+
   output$soil_table <- renderDT(
-    DBI::dbGetQuery(con, "SELECT * FROM soil_data"),
+    req(soil_data_cache()),
     options = list(pageLength = 15, scrollX = TRUE)
   )
 
+  # Keep output alive when hidden so first reveal does not depend on server timing.
+  outputOptions(output, "soil_table", suspendWhenHidden = FALSE)
+
   # Main AI Chat with Weather Tools
+  # NOTE: non-streaming async keeps the Shiny session more responsive to
+  # navigation/events than token-by-token streaming in a single callback.
+  chat_busy <- reactiveVal(FALSE)
+
   observeEvent(input$main_chat_user_input, {
-    stream <- main_chat$stream_async(
-      input$main_chat_user_input,
-      stream = "content"
-    )
-    chat_append("main_chat", stream)
+    req(!chat_busy())
+
+    chat_busy(TRUE)
+    user_message <- input$main_chat_user_input
+
+    main_chat$chat_async(user_message) |>
+      promises::then(function(response) {
+        chat_append("main_chat", as.character(response))
+        NULL
+      }) |>
+      promises::catch(function(err) {
+        chat_append(
+          "main_chat",
+          paste0(
+            "I hit an error while generating a response: ",
+            conditionMessage(err)
+          )
+        )
+        NULL
+      }) |>
+      promises::finally(function() {
+        # Refresh cache after tool/chat work completes in case DB writes occurred.
+        refresh_soil_data_cache()
+        chat_busy(FALSE)
+        NULL
+      })
   })
 
   # Populate report dropdowns from the database
