@@ -55,13 +55,17 @@ con <- dbConnect(duckdb::duckdb(), ":memory:")
 # Load Soil Data into DuckDB (wide-format CSV produced by data-raw/reformat_soil_data.R)
 dbExecute(
   con,
-  "CREATE TABLE soil_data AS SELECT * FROM read_csv_auto('data/soil_data.csv')"
+  glue::glue(
+    "CREATE TABLE {TABLE_NAMES$soil_data} AS SELECT * FROM read_csv_auto('data/soil_data.csv')"
+  )
 )
 
 # Load Data Dictionary into DuckDB
 dbExecute(
   con,
-  "CREATE TABLE data_dictionary AS SELECT * FROM read_csv_auto('data/data_dictionary.csv')"
+  glue::glue(
+    "CREATE TABLE {TABLE_NAMES$data_dictionary} AS SELECT * FROM read_csv_auto('data/data_dictionary.csv')"
+  )
 )
 
 # Initialize metadata registry for user-facing data labels
@@ -71,69 +75,72 @@ ensure_table_metadata(con)
 # Extract Sample Locations and write to DuckDB ----
 dbExecute(
   con,
-  "
-  CREATE TABLE sample_locations AS
+  glue::glue(
+    "
+  CREATE TABLE {TABLE_NAMES$sample_locations} AS
   SELECT
     latitude,
     longitude,
     COUNT(*) AS sample_count,
     MIN(sample_date)::VARCHAR AS earliest_date,
     MAX(sample_date)::VARCHAR AS latest_date
-  FROM soil_data
+  FROM {TABLE_NAMES$soil_data}
   WHERE latitude IS NOT NULL AND longitude IS NOT NULL
   GROUP BY latitude, longitude
 "
+  )
 )
 
 # Seed metadata labels for startup tables
 upsert_table_metadata(
   con = con,
-  table_name = "soil_data",
+  table_name = TABLE_NAMES$soil_data,
   table_label = "Soil Data",
   source = "startup",
-  row_count = DBI::dbGetQuery(con, "SELECT COUNT(*) AS n FROM soil_data")$n[[
-    1
-  ]],
-  column_count = length(DBI::dbListFields(con, "soil_data")),
+  row_count = DBI::dbGetQuery(
+    con,
+    glue::glue("SELECT COUNT(*) AS n FROM {TABLE_NAMES$soil_data}")
+  )$n[[1]],
+  column_count = length(DBI::dbListFields(con, TABLE_NAMES$soil_data)),
   is_active = TRUE
 )
 
 upsert_table_metadata(
   con = con,
-  table_name = "data_dictionary",
+  table_name = TABLE_NAMES$data_dictionary,
   table_label = "Data Dictionary",
   source = "startup",
   row_count = DBI::dbGetQuery(
     con,
-    "SELECT COUNT(*) AS n FROM data_dictionary"
+    glue::glue("SELECT COUNT(*) AS n FROM {TABLE_NAMES$data_dictionary}")
   )$n[[1]],
-  column_count = length(DBI::dbListFields(con, "data_dictionary")),
+  column_count = length(DBI::dbListFields(con, TABLE_NAMES$data_dictionary)),
   is_active = TRUE
 )
 
 upsert_table_metadata(
   con = con,
-  table_name = "sample_locations",
+  table_name = TABLE_NAMES$sample_locations,
   table_label = "Sample Locations",
   source = "startup",
   row_count = DBI::dbGetQuery(
     con,
-    "SELECT COUNT(*) AS n FROM sample_locations"
+    glue::glue("SELECT COUNT(*) AS n FROM {TABLE_NAMES$sample_locations}")
   )$n[[1]],
-  column_count = length(DBI::dbListFields(con, "sample_locations")),
+  column_count = length(DBI::dbListFields(con, TABLE_NAMES$sample_locations)),
   is_active = TRUE
 )
 
 upsert_table_metadata(
   con = con,
-  table_name = "table_metadata",
+  table_name = TABLE_NAMES$table_metadata,
   table_label = "Table Metadata",
   source = "system",
   row_count = DBI::dbGetQuery(
     con,
-    "SELECT COUNT(*) AS n FROM table_metadata"
+    glue::glue("SELECT COUNT(*) AS n FROM {TABLE_NAMES$table_metadata}")
   )$n[[1]],
-  column_count = length(DBI::dbListFields(con, "table_metadata")),
+  column_count = length(DBI::dbListFields(con, TABLE_NAMES$table_metadata)),
   is_active = TRUE
 )
 
@@ -325,20 +332,8 @@ data_view_queue <- new.env(parent = emptyenv())
 data_view_queue$table_names <- character()
 
 # Page Registry ----
-# Single source of truth for all navigable pages.
-# Add new pages here — hamburger menu, overlay panels, and tools all read from it.
-app_pages <- list(
-  data = list(
-    title = "Data",
-    icon = "database",
-    icon_fallback = "table"
-  ),
-  reports = list(
-    title = "Reports",
-    icon = "https://wa-department-of-agriculture.github.io/soils/logo.png",
-    icon_fallback = "file-alt"
-  )
-)
+# Keep `app_pages` as runtime alias to preserve current call sites.
+app_pages <- APP_PAGES
 
 # Register tools
 main_chat$register_tool(get_weather_forecast)

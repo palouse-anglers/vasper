@@ -25,14 +25,14 @@
 #' @return The path to the rendered report file (character). When
 #'   `format = "all"`, returns the path to a zip file containing both outputs.
 render_report <- function(
-  producer_id = "COLUMBIA CONSERVATION DISTRICT",
+  producer_id = REPORT_DEFAULTS$producer_id,
   year_start = 2023,
   year_end = 2023,
   depth = NULL,
   format = c("html", "docx", "all"),
   con = NULL,
-  data_table = "soil_data",
-  dictionary_table = "data_dictionary",
+  data_table = TABLE_NAMES$soil_data,
+  dictionary_table = TABLE_NAMES$data_dictionary,
   output_dir = "."
 ) {
   format <- match.arg(format)
@@ -118,6 +118,8 @@ render_report <- function(
     # memory simultaneously, which can exceed memory limits.
     # Sequential renders let R garbage-collect between passes,
     # cutting peak memory roughly in half.
+    rendered_files <- character()
+
     for (fmt in c("html", "docx")) {
       do.call(
         quarto::quarto_render,
@@ -129,17 +131,25 @@ render_report <- function(
           )
         )
       )
+
+      rendered_files <- c(
+        rendered_files,
+        glue::glue("{base_name}.{fmt}")
+      )
+
       # Free memory from the completed render before starting the next one
       gc()
     }
 
-    rendered <- list.files(output_dir, full.names = TRUE)
     zip_path <- file.path(output_dir, glue::glue("{base_name}.zip"))
+
     zip::zipr(
       zip_path,
-      files = rendered,
+      files = rendered_files,
+      root = output_dir,
       mode = "cherry-pick"
     )
+
     return(zip_path)
   }
 

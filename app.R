@@ -24,9 +24,7 @@ normalize_fa_icon_name <- function(name) {
   }
 
   # Common FA4 -> FA6 aliases used in this app.
-  aliases <- c(
-    "file-alt" = "file-lines"
-  )
+  aliases <- ICON_ALIASES
 
   if (name %in% names(aliases)) {
     return(unname(aliases[[name]]))
@@ -60,7 +58,7 @@ is_valid_fa_icon <- local({
   }
 })
 
-resolve_fa_icon <- function(primary_icon, fallback_icon = "file") {
+resolve_fa_icon <- function(primary_icon, fallback_icon = ICON_FALLBACK) {
   primary <- normalize_fa_icon_name(primary_icon)
   fallback <- normalize_fa_icon_name(fallback_icon)
 
@@ -72,19 +70,23 @@ resolve_fa_icon <- function(primary_icon, fallback_icon = "file") {
     return(fallback)
   }
 
-  if (is_valid_fa_icon("file")) {
-    return("file")
+  if (is_valid_fa_icon(ICON_FALLBACK)) {
+    return(ICON_FALLBACK)
   }
 
   if (!is.na(fallback)) {
     return(fallback)
   }
 
-  "file"
+  ICON_FALLBACK
 }
 
-render_page_icon <- function(icon_value, alt = "", fallback_icon = "file") {
-  fallback_icon <- resolve_fa_icon(fallback_icon, "file")
+render_page_icon <- function(
+  icon_value,
+  alt = "",
+  fallback_icon = ICON_FALLBACK
+) {
+  fallback_icon <- resolve_fa_icon(fallback_icon, ICON_FALLBACK)
 
   if (
     !is.character(icon_value) ||
@@ -309,7 +311,7 @@ ui <- page_fillable(
             radioButtons(
               "report_format",
               "Format",
-              choices = c("HTML" = "html", "Word" = "docx", "All" = "all"),
+              choices = REPORT_FORMATS,
               selected = "html"
             ),
             downloadButton("download_report", "Generate & Download Report")
@@ -560,7 +562,7 @@ server <- function(input, output, session) {
     id = "data_page",
     con = con,
     refresh_nonce_r = reactive(data_refresh_nonce()),
-    include_tables = c("table_metadata"),
+    include_tables = c(TABLE_NAMES$table_metadata),
     ignore_tables = character()
   )
 
@@ -651,43 +653,29 @@ server <- function(input, output, session) {
   })
 
   # Populate report dropdowns from the database
-  format_year_label <- function(year_range) {
-    if (length(year_range) != 2 || any(is.na(year_range))) {
-      return(NA_character_)
-    }
-    start_year <- as.integer(year_range[1])
-    end_year <- as.integer(year_range[2])
-    if (start_year == end_year) {
-      as.character(start_year)
-    } else {
-      glue::glue("{start_year}-{end_year}")
-    }
-  }
-
   observe({
-    producers <- DBI::dbGetQuery(
-      con,
-      "SELECT DISTINCT producer_id FROM soil_data ORDER BY producer_id"
-    )$producer_id
+    producers <- get_report_producers(con, data_table = TABLE_NAMES$soil_data)
+
     updateSelectInput(
       session,
       "report_producer",
       choices = producers,
-      selected = "COLUMBIA CONSERVATION DISTRICT"
+      selected = REPORT_DEFAULTS$producer_id
     )
   })
 
   observe({
     req(input$report_producer)
-    years <- DBI::dbGetQuery(
-      con,
-      "SELECT DISTINCT year FROM soil_data WHERE producer_id = ? ORDER BY year",
-      params = list(input$report_producer)
-    )$year
 
-    req(length(years) > 0)
-    year_min <- min(years, na.rm = TRUE)
-    year_max <- max(years, na.rm = TRUE)
+    year_bounds <- get_report_year_bounds(
+      con,
+      producer_id = input$report_producer,
+      data_table = TABLE_NAMES$soil_data
+    )
+
+    req(length(year_bounds) == 2)
+    year_min <- year_bounds[[1]]
+    year_max <- year_bounds[[2]]
 
     updateSliderInput(
       session,
@@ -706,14 +694,13 @@ server <- function(input, output, session) {
     year_start <- as.integer(min(input$report_year_range))
     year_end <- as.integer(max(input$report_year_range))
 
-    depths_raw <- DBI::dbGetQuery(
+    depths_raw <- get_report_depths(
       con,
-      "SELECT DISTINCT depth FROM soil_data
-       WHERE producer_id = ?
-         AND year BETWEEN ? AND ?
-       ORDER BY depth",
-      params = list(input$report_producer, year_start, year_end)
-    )$depth
+      producer_id = input$report_producer,
+      year_start = year_start,
+      year_end = year_end,
+      data_table = TABLE_NAMES$soil_data
+    )
 
     req(length(depths_raw) > 0)
 
@@ -728,11 +715,11 @@ server <- function(input, output, session) {
   # Download handler for reports
   output$download_report <- downloadHandler(
     filename = function() {
-      ext <- if (input$report_format == "all") "zip" else input$report_format
-      depth_suffix <- gsub("-", "to", input$report_depth)
-      year_label <- format_year_label(input$report_year_range)
-      glue::glue(
-        "{year_label}_{input$report_producer}_{depth_suffix}_Report.{ext}"
+      build_report_filename(
+        report_format = input$report_format,
+        producer_id = input$report_producer,
+        report_depth = input$report_depth,
+        report_year_range = input$report_year_range
       )
     },
     content = function(file) {
@@ -757,8 +744,8 @@ server <- function(input, output, session) {
         depth = input$report_depth,
         format = input$report_format,
         con = con,
-        data_table = "soil_data",
-        dictionary_table = "data_dictionary",
+        data_table = TABLE_NAMES$soil_data,
+        dictionary_table = TABLE_NAMES$data_dictionary,
         output_dir = dirname(file)
       )
 
