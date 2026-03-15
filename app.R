@@ -4,25 +4,15 @@ if (!("reports-images" %in% names(shiny::resourcePaths()))) {
   shiny::addResourcePath("reports-images", "reports/images")
 }
 
-chat_welcome_message <- paste0(
-  "I'm Vasper, your soil health and weather assistant. ",
-  "I can fetch weather forecasts and historical data, navigate ",
-  "app pages, and help you explore data in your region.",
-  "<div class='suggestion'>What's the 7-day forecast for Columbia County?</div>",
-  "<div class='suggestion'>Pull current and past 24 hours of Davis WeatherLink data for one station.</div>",
-  "<div class='suggestion'>Get historical rainfall totals for Columbia County from 2010 to 2024.</div>",
-  "<div class='suggestion'>Summarize wheat yields in spring in Columbia County.</div>",
-  "<div class='suggestion'>Tell me what tools you have access to.</div>"
-)
-
 acknowledgements_banner <- tags$div(
   class = "app-acknowledgements",
   htmltools::HTML(paste0(
     "<span>Acknowledgements:</span> Data services and tooling include ",
     "<a href='https://open-meteo.com/' target='_blank' rel='noopener noreferrer'>Open-Meteo</a>, ",
-    "<a href='https://weatherlink.github.io/v2-api/' target='_blank' rel='noopener noreferrer'>Davis WeatherLink</a>, and the ",
-    "<a href='https://wa-department-of-agriculture.github.io/soils/' target='_blank' rel='noopener noreferrer'>{soils} R package</a>. ",
-    "This product uses the NASS API but is not endorsed or certified by NASS."
+    "<a href='https://weatherlink.github.io/v2-api/' target='_blank' rel='noopener noreferrer'>Davis WeatherLink</a>, ",
+    "<a href='https://quickstats.nass.usda.gov/api' target='_blank' rel='noopener noreferrer'>USDA NASS Quick Stats API</a>, and the ",
+    "<a href='https://wa-department-of-agriculture.github.io/soils/' target='_blank' rel='noopener noreferrer'>{soils} R package</a>.",
+    "<br/>This product uses the NASS API but is not endorsed or certified by NASS."
   ))
 )
 

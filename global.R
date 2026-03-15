@@ -512,6 +512,86 @@ get_yield_historical_nass <- tool(
 )
 
 # Initialize Main Chat with Weather Tools ----
+# Shared prompts (loaded from prompts/prompt.md) ----
+trim_blank_lines <- function(lines) {
+  out <- lines
+
+  while (length(out) > 0 && !nzchar(trimws(out[[1]]))) {
+    out <- out[-1]
+  }
+
+  while (length(out) > 0 && !nzchar(trimws(out[[length(out)]]))) {
+    out <- out[-length(out)]
+  }
+
+  out
+}
+
+extract_prompt_section <- function(lines, section_name) {
+  start_idx <- grep(
+    paste0("^##\\s+", section_name, "\\s*$"),
+    lines,
+    perl = TRUE
+  )
+
+  if (length(start_idx) == 0) {
+    return(NULL)
+  }
+
+  start <- start_idx[[1]]
+  next_headers <- grep("^##\\s+", lines)
+  next_headers <- next_headers[next_headers > start]
+  end <- if (length(next_headers) > 0) {
+    next_headers[[1]] - 1
+  } else {
+    length(lines)
+  }
+
+  body <- trim_blank_lines(lines[(start + 1):end])
+  if (length(body) == 0) {
+    return(NULL)
+  }
+
+  paste(body, collapse = "\n")
+}
+
+load_prompt_inputs <- function(path = file.path("prompts", "prompt.md")) {
+  if (!file.exists(path)) {
+    stop(
+      paste0("Missing required prompt file: ", path),
+      call. = FALSE
+    )
+  }
+
+  lines <- readLines(path, warn = FALSE, encoding = "UTF-8")
+
+  system_prompt <- extract_prompt_section(lines, "system_prompt")
+  chat_welcome_message <- extract_prompt_section(lines, "chat_welcome_message")
+
+  if (is.null(system_prompt) || !nzchar(trimws(system_prompt))) {
+    stop(
+      "Missing required '## system_prompt' section in prompts/prompt.md.",
+      call. = FALSE
+    )
+  }
+
+  if (is.null(chat_welcome_message) || !nzchar(trimws(chat_welcome_message))) {
+    stop(
+      "Missing required '## chat_welcome_message' section in prompts/prompt.md.",
+      call. = FALSE
+    )
+  }
+
+  list(
+    system_prompt = system_prompt,
+    chat_welcome_message = chat_welcome_message
+  )
+}
+
+prompt_inputs <- load_prompt_inputs()
+system_prompt <- prompt_inputs$system_prompt
+chat_welcome_message <- prompt_inputs$chat_welcome_message
+
 # Detect available LLM provider based on environment variables
 chat_provider <- if (nzchar(Sys.getenv("ANTHROPIC_API_KEY"))) {
   "anthropic"
@@ -525,38 +605,7 @@ chat_provider <- if (nzchar(Sys.getenv("ANTHROPIC_API_KEY"))) {
 
 main_chat <- chat(
   name = chat_provider,
-  system_prompt = paste(
-    "You are an agricultural advisor assistant for Columbia County, WA.",
-    "You primarily interact with farmers and producers who are on mobile devices.",
-    "You have access to weather data tools and soil chemistry data.",
-    "\nWeather tools:",
-    "- get_weather_forecast_open_meteo: Open-Meteo forecast data (up to 16 days)",
-    "- get_weather_historical_open_meteo: Open-Meteo historical weather data, including multi-year ranges",
-    "- get_weather_stations_davis: List Davis stations available to the API key in/near Columbia County, WA",
-    "- get_weather_current_davis: Davis current weather records for an explicit station_uuid",
-    "- get_weather_historical_davis: Davis historical weather records for an explicit station_uuid and short Unix timestamp range (up to 24 hours per call)",
-    "- get_yield_historical_nass: USDA NASS QuickStats historical crop records for Columbia County, WA; writes paired raw and trend tables",
-    "For recent past-hour conditions, prefer Davis tools: call get_weather_stations_davis first, then get_weather_current_davis for one or more local stations.",
-    "Each weather tool call must include a descriptive table_label for the Data page.",
-    "NASS historical yield calls should use get_yield_historical_nass with explicit crops when possible.",
-    "NASS raw tables preserve value_raw, value_num, and is_suppressed fields for safe analysis.",
-    "Weather and NASS tools write data to the same DuckDB database that contains soil_data and sample_locations.",
-    "Table labels are stored in the table_metadata table with columns table_name and table_label.",
-    "Weather data tables are named like weather_forecast_open_meteo_HASH, weather_historical_open_meteo_HASH, weather_current_davis_HASH, weather_historical_davis_HASH, and weather_stations_davis_HASH.",
-    "NASS data tables are named like usda_yields_raw_HASH and usda_yields_trend_HASH.",
-    "After calling tools, you can query across weather, yields, and soil data using SQL.",
-    "\nSoil data is in the 'soil_data' table (wide format, one row per sample) with metadata columns:",
-    "year, sample_id, producer_id, field_name, field_id, county, longitude, latitude,",
-    "sample_date, depth, start_depth_inches, end_depth_inches, huc8_name, hc12_name, huc12",
-    "\nand measurement columns (numeric, units in column name):",
-    "density_g_ml, density2_mlb_ac, om_percent, ph, ph_ae, ec_mmhos_cm, est_ss_ds_m, effervescence,",
-    "cec_meq_100g, est_cec_meq_100g, total_bases_meq_100g, no3_n_mg_kg, no3_n_lb_ac, nh4_n_mg_kg,",
-    "nh4_n_lb_ac, p_olsen_mg_kg, bray_p_mg_kg, k_mg_kg, exch_k_meq_100g, ca_mg_kg, mg_mg_kg,",
-    "na_mg_kg, s_mg_kg, s_lb_ac, b_mg_kg, cl_mg_kg, cu_mg_kg, fe_mg_kg, mn_mg_kg, zn_mg_kg,",
-    "al_mg_kg, al_kcl_mg_kg, ca_kcl_mg_kg, mg_kcl_mg_kg, na_kcl_mg_kg, wilting_point,",
-    "field_capacity, h2o_wet_dry, avl_h2o_in, avl_h2o_percent",
-    "\nProvide practical agricultural advice based on weather patterns, soil conditions, and farming best practices."
-  ),
+  system_prompt = system_prompt,
   echo = "all"
 )
 
