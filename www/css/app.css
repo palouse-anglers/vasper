@@ -239,3 +239,29 @@
 .data-module-collapsed .data-module-header-row {
   min-height: 2.2rem;
 }
+
+/* In-app acknowledgements shown above chat */
+.app-acknowledgements {
+  margin: 0.4rem 0.75rem 0.5rem 0.75rem;
+  padding: 0.55rem 0.7rem;
+  border: 1px solid var(--bs-border-color, #dee2e6);
+  border-radius: 0.4rem;
+  background: rgba(46, 125, 50, 0.06);
+  font-size: 0.84rem;
+  line-height: 1.35;
+}
+
+.app-acknowledgements > span:first-child {
+  font-weight: 600;
+}
+
+.app-acknowledgements a {
+  text-decoration: underline;
+}
+
+@media (max-width: 640px) {
+  .app-acknowledgements {
+    margin: 0.35rem 0.5rem 0.45rem 0.5rem;
+    font-size: 0.8rem;
+  }
+}

@@ -11,8 +11,18 @@ chat_welcome_message <- paste0(
   "<div class='suggestion'>What's the 7-day forecast for Columbia County?</div>",
   "<div class='suggestion'>Pull current and past 24 hours of Davis WeatherLink data for one station.</div>",
   "<div class='suggestion'>Get historical rainfall totals for Columbia County from 2010 to 2024.</div>",
-  "<div class='suggestion'>Summarize wheat yields in spring in Columbia County</div>",
+  "<div class='suggestion'>Summarize wheat yields in spring in Columbia County.</div>",
   "<div class='suggestion'>Tell me what tools you have access to.</div>"
+)
+
+acknowledgements_banner <- tags$div(
+  class = "app-acknowledgements",
+  htmltools::HTML(paste0(
+    "<span>Acknowledgements:</span> Data services and tooling include ",
+    "<a href='https://open-meteo.com/' target='_blank' rel='noopener noreferrer'>Open-Meteo</a>, ",
+    "<a href='https://weatherlink.github.io/v2-api/' target='_blank' rel='noopener noreferrer'>Davis WeatherLink</a>, and the ",
+    "<a href='https://wa-department-of-agriculture.github.io/soils/' target='_blank' rel='noopener noreferrer'>{soils} R package</a>."
+  ))
 )
 
 ui <- page_fillable(
@@ -35,10 +45,14 @@ ui <- page_fillable(
     # Chat view (default)
     nav_panel_hidden(
       value = "chat",
-      chat_ui(
-        "main_chat",
-        messages = list(
-          chat_welcome_message
+      tags$div(
+        class = "chat-view-container",
+        acknowledgements_banner,
+        chat_ui(
+          "main_chat",
+          messages = list(
+            chat_welcome_message
+          )
         )
       )
     ),
