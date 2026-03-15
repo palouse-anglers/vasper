@@ -2,6 +2,7 @@
   "use strict";
 
   var SET_ACTIVE_PAGE_HANDLER_NAME = "set-active-page";
+  var SET_ACTION_ENABLED_HANDLER_NAME = "set-action-enabled";
 
   function normalizePayload(payload) {
     if (typeof payload === "string") {
@@ -131,6 +132,15 @@
     window.__vasperClientNavInterceptorRegistered = true;
 
     document.addEventListener("click", function(event) {
+      var disabledAction = event.target && event.target.closest
+        ? event.target.closest("a.action-button[data-disabled='true']")
+        : null;
+      if (disabledAction) {
+        event.preventDefault();
+        event.stopPropagation();
+        return;
+      }
+
       var link = event.target && event.target.closest
         ? event.target.closest("a.action-button[id^='hdr_'], a.action-button[id^='nav_']")
         : null;
@@ -142,6 +152,30 @@
       event.preventDefault();
       activatePageClientSide(page);
     }, true);
+  }
+
+  function setActionEnabled(payload) {
+    var opts = normalizePayload(payload);
+    var id = opts.id;
+    if (!id) return;
+
+    var node = document.getElementById(id);
+    if (!node) return;
+
+    var enabled = opts.enabled !== false;
+
+    if (enabled) {
+      node.removeAttribute("data-disabled");
+      node.removeAttribute("aria-disabled");
+      node.classList.remove("is-disabled");
+      node.removeAttribute("tabindex");
+      return;
+    }
+
+    node.setAttribute("data-disabled", "true");
+    node.setAttribute("aria-disabled", "true");
+    node.classList.add("is-disabled");
+    node.tabIndex = -1;
   }
 
   function registerNavigationHandlers() {
@@ -156,6 +190,7 @@
     window.__vasperNavigationHandlerRegistered = true;
 
     window.Shiny.addCustomMessageHandler(SET_ACTIVE_PAGE_HANDLER_NAME, handleSetActivePage);
+    window.Shiny.addCustomMessageHandler(SET_ACTION_ENABLED_HANDLER_NAME, setActionEnabled);
   }
 
   registerClientNavInterceptors();

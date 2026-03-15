@@ -594,15 +594,6 @@ write_yield_to_db <- function(
     is_active = TRUE
   )
 
-  if (isTRUE(add_data_view) && exists("data_view_queue", inherits = TRUE)) {
-    queued <- get("data_view_queue", inherits = TRUE)
-    queued$table_names <- unique(c(
-      queued$table_names,
-      raw_table_name,
-      trend_table_name
-    ))
-  }
-
   raw_sample <- if (nrow(raw_data) > 0) {
     raw_data |>
       head(5) |>

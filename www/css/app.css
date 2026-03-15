@@ -18,6 +18,13 @@
   white-space: nowrap;
 }
 
+.action-button.is-disabled,
+.action-button[aria-disabled='true'] {
+  opacity: 0.55;
+  pointer-events: none;
+  cursor: not-allowed;
+}
+
 .bottom-bar > .action-button:first-child {
   justify-self: start;
 }
@@ -259,9 +266,89 @@
   text-decoration: underline;
 }
 
+.chat-profile-toolbar {
+  margin: 0 0.75rem 0.5rem 0.75rem;
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+}
+
+.chat-profile-buttons {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+}
+
+.chat-profile-context-wrap {
+  display: inline-flex;
+  align-items: center;
+}
+
+.chat-profile-context {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 0.3rem;
+  padding: 0.1rem 0.25rem;
+  border-radius: 0.35rem;
+  text-decoration: none;
+}
+
+.chat-profile-context:hover,
+.chat-profile-context:focus {
+  text-decoration: none;
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.chat-profile-context .fa-chevron-down {
+  font-size: 0.72em;
+}
+
+.chat-profile-previous {
+  display: inline-flex;
+  align-items: center;
+}
+
+.prompt-mode-suggestions {
+  margin: 0 0.75rem 0.45rem 0.75rem;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+}
+
+.prompt-mode-suggestions .suggestion {
+  margin: 0;
+}
+
+.resume-chat-row {
+  padding: 0.55rem 0.65rem;
+}
+
+.prompt-mode-row {
+  padding: 0.55rem 0.65rem;
+}
+
+.chat-profile-buttons .action-button.is-active,
+.chat-profile-buttons .btn.is-active {
+  background: rgba(46, 125, 50, 0.14);
+  border-color: rgba(46, 125, 50, 0.45);
+  color: inherit;
+  font-weight: 600;
+}
+
 @media (max-width: 640px) {
   .app-acknowledgements {
     margin: 0.35rem 0.5rem 0.45rem 0.5rem;
     font-size: 0.8rem;
+  }
+
+  .chat-profile-toolbar {
+    margin: 0 0.5rem 0.4rem 0.5rem;
+  }
+
+  .prompt-mode-suggestions {
+    margin: 0 0.5rem 0.4rem 0.5rem;
   }
 }

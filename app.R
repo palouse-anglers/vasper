@@ -39,11 +39,13 @@ ui <- page_fillable(
       tags$div(
         class = "chat-view-container",
         acknowledgements_banner,
+        tags$div(
+          class = "chat-profile-toolbar",
+          uiOutput("prompt_profile_context")
+        ),
         chat_ui(
           "main_chat",
-          messages = list(
-            chat_welcome_message
-          )
+          messages = list()
         )
       )
     ),
@@ -74,18 +76,6 @@ ui <- page_fillable(
 
 # Server ----
 server <- function(input, output, session) {
-  navigation_api <- navigation_server(
-    input = input,
-    output = output,
-    session = session,
-    main_chat = main_chat,
-    chat_welcome_message = chat_welcome_message,
-    app_pages = app_pages,
-    chat_id = "main_chat"
-  )
-
-  # -- Existing functionality --
-
   # Data page modules refresh off this nonce whenever chat/tools modify DB.
   data_refresh_nonce <- reactiveVal(0)
 
@@ -115,60 +105,530 @@ server <- function(input, output, session) {
     )
   )
 
-  main_chat$register_tool(get_data_table_metadata)
+  pending_data_views <- reactiveVal(character())
 
-  # Auto-open Data views when tools return add_data_view = TRUE and a table_name.
-  main_chat$on_tool_result(function(result) {
-    deep_extract <- function(x, key) {
-      out <- list()
-      if (is.list(x)) {
-        if (!is.null(names(x)) && key %in% names(x)) {
-          out <- c(out, list(x[[key]]))
-        }
-        for (el in x) {
-          out <- c(out, deep_extract(el, key))
-        }
-      }
-      out
-    }
-
-    add_flags <- unlist(
-      deep_extract(result, "add_data_view"),
-      use.names = FALSE
-    )
-    table_names <- unlist(deep_extract(result, "table_name"), use.names = FALSE)
-    table_names <- table_names[nzchar(table_names)]
-
-    add_flags <- suppressWarnings(as.logical(add_flags))
-
-    if (!any(add_flags, na.rm = TRUE) || length(table_names) == 0) {
-      return(invisible(NULL))
-    }
-
-    # Refresh metadata first so newly created tables are available to add_views.
-    data_refresh_nonce(data_refresh_nonce() + 1)
-    data_page_api$add_views(unique(table_names))
-    data_refresh_nonce(data_refresh_nonce() + 1)
-    invisible(NULL)
-  })
-
-  # Fallback path: consume tool-requested Data views from global queue.
-  observe({
-    invalidateLater(250, session)
-
-    req(exists("data_view_queue", inherits = TRUE))
-    queued <- get("data_view_queue", inherits = TRUE)
-    table_names <- unique(queued$table_names)
+  queue_data_views <- function(table_names) {
+    table_names <- normalize_table_names(table_names)
 
     if (length(table_names) == 0) {
       return(invisible(NULL))
     }
 
-    queued$table_names <- character()
+    pending_data_views(unique(c(isolate(pending_data_views()), table_names)))
+    invisible(NULL)
+  }
+
+  # Auto-open Data views when tools return add_data_view = TRUE.
+  handle_tool_result <- function(result) {
+    parsed <- parse_tool_result_data_view(result)
+
+    if (!parsed$should_queue || length(parsed$table_names) == 0) {
+      return(invisible(NULL))
+    }
+
+    queue_data_views(parsed$table_names)
+    invisible(NULL)
+  }
+
+  chat_state <- reactiveValues(
+    live_chat = NULL,
+    archived_threads = list(),
+    previous_prompt_id = NULL,
+    counter = 0
+  )
+
+  is_chat_streaming <- reactiveVal(FALSE)
+  stream_tracking <- reactiveValues(
+    chat_id = NULL,
+    assistant_turn_count = 0
+  )
+  navigation_api <- list(set_action_enabled = function(...) invisible(NULL))
+
+  set_chat_streaming <- function(value) {
+    value <- isTRUE(value)
+    is_chat_streaming(value)
+    navigation_api$set_action_enabled("clear_chat", enabled = !value)
+    navigation_api$set_action_enabled("toggle_view", enabled = !value)
+    invisible(value)
+  }
+
+  make_chat_id <- function() {
+    isolate({
+      chat_state$counter <- chat_state$counter + 1
+      paste0("chat_", sprintf("%03d", chat_state$counter))
+    })
+  }
+
+  active_chat <- reactive({
+    req(chat_state$live_chat)
+    chat_state$live_chat
+  })
+
+  active_prompt_id <- reactive({
+    req(chat_state$live_chat)
+    chat_state$live_chat$prompt_id
+  })
+
+  apply_live_chat_to_ui <- function() {
+    entry <- isolate(active_chat())
+    turns <- entry$client$get_turns()
+
+    if (length(turns) == 0) {
+      chat_clear("main_chat")
+      chat_append("main_chat", entry$welcome_message)
+      return(invisible(NULL))
+    }
+
+    render_chat_turns(turns, chat_id = "main_chat")
+    invisible(NULL)
+  }
+
+  create_live_chat_entry <- function(prompt_id) {
+    prompt_profile <- get_prompt_profile(prompt_config, prompt_id)
+    chat_client <- create_chat_client(prompt_profile$system_prompt)
+    chat_id <- make_chat_id()
+
+    register_prompt_tools(
+      chat_client = chat_client,
+      prompt_profile = prompt_profile,
+      extra_tools = list(
+        get_data_table_metadata = get_data_table_metadata,
+        show_page = navigation_api$show_page_tool
+      )
+    )
+
+    chat_client$on_tool_result(function(result) {
+      handle_tool_result(result)
+    })
+
+    list(
+      chat_id = chat_id,
+      prompt_id = prompt_profile$id,
+      prompt_name = prompt_profile$name,
+      thread_base_name = prompt_profile$name,
+      mode_history = c(prompt_profile$name),
+      resume_index = 0,
+      welcome_message = prompt_profile$chat_welcome_message,
+      client = chat_client,
+      created_at = Sys.time(),
+      last_message_at = NULL,
+      resume_source_archive_id = NULL,
+      resume_source_fingerprint = NULL
+    )
+  }
+
+  archive_entry <- function(entry, archived_at = Sys.time()) {
+    archive_id <- paste0(
+      "archive_",
+      entry$chat_id,
+      "_",
+      format(archived_at, "%Y%m%d%H%M%S")
+    )
+
+    entry$archived_at <- archived_at
+    entry$first_user_preview <- first_user_preview(entry)
+    entry$display_name <- thread_display_name(entry)
+
+    archived <- isolate(chat_state$archived_threads)
+    archived[[archive_id]] <- entry
+    chat_state$archived_threads <- archived
+
+    invisible(archive_id)
+  }
+
+  initialize_live_chat <- function(prompt_id = default_prompt_id) {
+    chat_state$live_chat <- create_live_chat_entry(prompt_id)
+    apply_live_chat_to_ui()
+    invisible(chat_state$live_chat$chat_id)
+  }
+
+  switch_prompt_profile <- function(prompt_id) {
+    req(chat_state$live_chat)
+
+    current <- isolate(chat_state$live_chat)
+    if (identical(current$prompt_id, prompt_id)) {
+      return(invisible(current$chat_id))
+    }
+
+    prompt_profile <- get_prompt_profile(prompt_config, prompt_id)
+    existing_turns <- current$client$get_turns()
+
+    # If there is no transcript yet, switch mode in-place.
+    if (length(existing_turns) == 0) {
+      prior_prompt_id <- current$prompt_id
+      current$prompt_id <- prompt_profile$id
+      current$prompt_name <- prompt_profile$name
+      current$welcome_message <- prompt_profile$chat_welcome_message
+      current$mode_history <- c(prompt_profile$name)
+      current$thread_base_name <- prompt_profile$name
+      chat_state$previous_prompt_id <- prior_prompt_id
+      chat_state$live_chat <- current
+      apply_live_chat_to_ui()
+      return(invisible(current$chat_id))
+    }
+
+    # Between messages, branch to a new chat with concatenated mode history.
+    if (should_archive_entry(current)) {
+      archive_entry(current)
+    }
+
+    branched <- create_live_chat_entry(prompt_profile$id)
+    branched$client$set_turns(existing_turns)
+    current_history <- current$mode_history %||% c(current$prompt_name)
+    branched$mode_history <- c(current_history, prompt_profile$name)
+    branched$thread_base_name <- paste(branched$mode_history, collapse = "+")
+    branched$last_message_at <- current$last_message_at
+
+    chat_state$previous_prompt_id <- current$prompt_id
+    chat_state$live_chat <- branched
+    apply_live_chat_to_ui()
+    invisible(branched$chat_id)
+  }
+
+  archive_and_reset_live_chat <- function(prompt_id = NULL) {
+    req(chat_state$live_chat)
+
+    current <- isolate(chat_state$live_chat)
+    target_prompt_id <- prompt_id %||% current$prompt_id
+
+    if (should_archive_entry(current)) {
+      archive_entry(current)
+    }
+
+    initialize_live_chat(prompt_id = target_prompt_id)
+    invisible(NULL)
+  }
+
+  resume_archived_thread <- function(archive_id, clone_archived = TRUE) {
+    archived <- isolate(chat_state$archived_threads)
+    req(archive_id %in% names(archived))
+
+    current <- isolate(chat_state$live_chat)
+    if (!is.null(current) && should_archive_entry(current)) {
+      archive_entry(current)
+    }
+
+    selected <- archived[[archive_id]]
+    prompt_profile <- get_prompt_profile(prompt_config, selected$prompt_id)
+
+    resumed <- create_live_chat_entry(prompt_profile$id)
+    selected_turns <- selected$client$get_turns()
+    resumed$client$set_turns(selected_turns)
+    resumed$created_at <- selected$created_at
+    resumed$last_message_at <- selected$last_message_at %||%
+      selected$archived_at
+    resumed$thread_base_name <- selected$thread_base_name %||%
+      selected$prompt_name
+    resumed$mode_history <- selected$mode_history %||% c(selected$prompt_name)
+    resumed$resume_index <- as.integer(selected$resume_index %||% 0) + 1
+    resumed$resume_source_archive_id <- archive_id
+    resumed$resume_source_fingerprint <- digest::digest(
+      selected_turns,
+      algo = "md5"
+    )
+
+    chat_state$previous_prompt_id <- if (!is.null(current)) {
+      current$prompt_id
+    } else {
+      NULL
+    }
+    chat_state$live_chat <- resumed
+
+    if (!clone_archived) {
+      archived[[archive_id]] <- NULL
+      chat_state$archived_threads <- archived
+    }
+
+    apply_live_chat_to_ui()
+    invisible(resumed$chat_id)
+  }
+
+  clear_active_chat <- function() {
+    archive_and_reset_live_chat()
+    invisible(NULL)
+  }
+
+  ensure_not_streaming <- function(action_label = "This action") {
+    if (!isTRUE(isolate(is_chat_streaming()))) {
+      return(TRUE)
+    }
+
+    showNotification(
+      paste0(action_label, " is unavailable while the assistant is streaming."),
+      type = "message",
+      duration = 2
+    )
+
+    FALSE
+  }
+
+  navigation_api <- navigation_server(
+    input = input,
+    output = output,
+    session = session,
+    app_pages = app_pages,
+    chat_id = "main_chat",
+    on_clear_chat = clear_active_chat
+  )
+
+  set_chat_streaming(isolate(is_chat_streaming()))
+
+  output$prompt_profile_context <- renderUI({
+    live <- chat_state$live_chat
+    req(!is.null(live))
+
+    tags$div(
+      class = "chat-profile-context-wrap",
+      actionLink(
+        inputId = "new_chat_mode",
+        label = tagList(
+          tags$span(tags$strong("New chat")),
+          icon("plus")
+        ),
+        class = "chat-profile-context text-muted small"
+      ),
+      actionLink(
+        inputId = "choose_prompt_mode",
+        label = tagList(
+          tags$span(tags$strong(live$prompt_name)),
+          icon("chevron-down")
+        ),
+        class = "chat-profile-context text-muted small"
+      ),
+      actionLink(
+        inputId = "choose_resume_chat",
+        label = tagList(
+          tags$span(tags$strong("Previous chats")),
+          icon("chevron-down")
+        ),
+        class = "chat-profile-context text-muted small"
+      )
+    )
+  })
+
+  show_prompt_mode_modal <- function(title = "Choose prompt mode") {
+    profiles <- prompt_config$prompts
+    if (length(profiles) == 0) {
+      return(invisible(NULL))
+    }
+
+    selected_prompt_id <- isolate(active_prompt_id())
+
+    rows <- lapply(profiles, function(profile) {
+      is_active <- identical(profile$id, selected_prompt_id)
+
+      tags$button(
+        type = "button",
+        class = paste(
+          "btn btn-sm w-100 text-start prompt-mode-row",
+          if (is_active) {
+            "btn-success"
+          } else {
+            "btn-outline-secondary"
+          }
+        ),
+        onclick = sprintf(
+          "Shiny.setInputValue('prompt_mode_select', '%s', {priority: 'event'})",
+          profile$id
+        ),
+        tags$div(
+          class = "d-flex justify-content-between align-items-center gap-2",
+          tags$span(class = "fw-semibold", profile$name),
+          if (is_active) tags$span(class = "small", "Current")
+        )
+      )
+    })
+
+    showModal(
+      modalDialog(
+        title = title,
+        tags$div(class = "d-grid gap-2", !!!rows),
+        footer = modalButton("Close"),
+        easyClose = TRUE,
+        size = "m"
+      )
+    )
+
+    invisible(NULL)
+  }
+
+  show_resume_modal <- function() {
+    archived <- isolate(chat_state$archived_threads)
+
+    if (length(archived) == 0) {
+      showNotification("No archived chats yet.", type = "message")
+      return(invisible(NULL))
+    }
+
+    entries <- archived[order(
+      vapply(
+        archived,
+        function(x) as.numeric(x$archived_at %||% x$created_at),
+        numeric(1)
+      ),
+      decreasing = TRUE
+    )]
+
+    rows <- lapply(names(entries), function(id) {
+      entry <- entries[[id]]
+      start_time <- entry$created_at
+      last_time <- entry_last_message_time(entry)
+      preview <- entry$first_user_preview %||% first_user_preview(entry)
+      display_name <- entry$display_name %||% thread_display_name(entry)
+
+      tags$button(
+        type = "button",
+        class = "btn btn-sm btn-outline-secondary w-100 text-start resume-chat-row",
+        onclick = sprintf(
+          "Shiny.setInputValue('resume_thread_select', '%s', {priority: 'event'})",
+          id
+        ),
+        tags$div(
+          class = "d-flex justify-content-between align-items-center gap-2",
+          tags$span(
+            class = "fw-semibold",
+            display_name
+          ),
+          tags$span(
+            class = "text-muted small",
+            format_timestamp(entry$archived_at %||% entry$created_at)
+          )
+        ),
+        tags$div(
+          class = "small text-muted mt-1",
+          paste0(
+            "Start: ",
+            format_timestamp(start_time),
+            " • Last: ",
+            format_timestamp(last_time)
+          )
+        ),
+        tags$div(class = "small text-muted mt-1", preview)
+      )
+    })
+
+    showModal(
+      modalDialog(
+        title = "Previous chats",
+        tags$div(class = "d-grid gap-2", !!!rows),
+        footer = modalButton("Close"),
+        easyClose = TRUE,
+        size = "l"
+      )
+    )
+
+    invisible(NULL)
+  }
+
+  observeEvent(input$choose_prompt_mode, {
+    req(ensure_not_streaming("Switch mode"))
+    show_prompt_mode_modal(title = "Switch mode in current chat")
+  })
+
+  observeEvent(input$new_chat_mode, {
+    req(ensure_not_streaming("Starting a new chat"))
+    clear_active_chat()
+    navigation_api$navigate_to_chat()
+  })
+
+  observeEvent(input$prompt_mode_select, {
+    req(input$prompt_mode_select)
+    req(ensure_not_streaming("Changing mode"))
+    removeModal()
+
+    switch_prompt_profile(input$prompt_mode_select)
+
+    navigation_api$navigate_to_chat()
+  })
+
+  observeEvent(input$choose_resume_chat, {
+    req(ensure_not_streaming("Resuming a chat"))
+    show_resume_modal()
+  })
+
+  observeEvent(input$resume_thread_select, {
+    req(input$resume_thread_select)
+    req(ensure_not_streaming("Resuming a chat"))
+    removeModal()
+    resume_archived_thread(input$resume_thread_select, clone_archived = TRUE)
+    navigation_api$navigate_to_chat()
+  })
+
+  isolate({
+    initialize_live_chat(default_prompt_id)
+  })
+
+  # Consume tool-requested Data views from a session-scoped queue.
+  flush_data_view_queue <- function() {
+    table_names <- normalize_table_names(isolate(pending_data_views()))
+
+    if (length(table_names) == 0) {
+      return(invisible(NULL))
+    }
+
+    pending_data_views(character())
 
     data_refresh_nonce(data_refresh_nonce() + 1)
-    data_page_api$add_views(table_names)
+    add_result <- tryCatch(
+      data_page_api$add_views(table_names),
+      error = function(e) {
+        pending_data_views(unique(c(
+          isolate(pending_data_views()),
+          table_names
+        )))
+        NULL
+      }
+    )
+
+    unknown_tables <- normalize_table_names(
+      add_result$unknown_tables %||% character()
+    )
+    if (length(unknown_tables) > 0) {
+      pending_data_views(unique(c(
+        isolate(pending_data_views()),
+        unknown_tables
+      )))
+    }
+
     data_refresh_nonce(data_refresh_nonce() + 1)
+
+    invisible(NULL)
+  }
+
+  observe({
+    table_names <- normalize_table_names(pending_data_views())
+    if (length(table_names) == 0) {
+      return(invisible(NULL))
+    }
+
+    invalidateLater(250, session)
+    flush_data_view_queue()
+    invisible(NULL)
+  })
+
+  observe({
+    if (!isTRUE(is_chat_streaming())) {
+      return(invisible(NULL))
+    }
+
+    invalidateLater(250, session)
+
+    live <- chat_state$live_chat
+    if (is.null(live)) {
+      return(invisible(NULL))
+    }
+
+    tracked_chat_id <- isolate(stream_tracking$chat_id)
+    if (!identical(live$chat_id, tracked_chat_id)) {
+      return(invisible(NULL))
+    }
+
+    baseline_assistant_count <- isolate(stream_tracking$assistant_turn_count)
+    current_assistant_count <- get_assistant_turn_count(live)
+
+    if (current_assistant_count > baseline_assistant_count) {
+      set_chat_streaming(FALSE)
+    }
 
     invisible(NULL)
   })
@@ -176,11 +636,42 @@ server <- function(input, output, session) {
   # Main AI Chat with Weather Tools
   # Use content streaming so shinychat can render tool calls inline.
   observeEvent(input$main_chat_user_input, {
-    stream <- main_chat$stream_async(
-      input$main_chat_user_input,
-      stream = "content"
+    req(ensure_not_streaming("Sending another message"))
+
+    chat_state$live_chat$last_message_at <- Sys.time()
+
+    stream <- tryCatch(
+      active_chat()$client$stream_async(
+        input$main_chat_user_input,
+        tool_mode = "sequential",
+        stream = "content"
+      ),
+      error = function(e) {
+        showNotification(
+          paste0("Unable to start streaming response: ", conditionMessage(e)),
+          type = "error"
+        )
+        NULL
+      }
     )
-    chat_append("main_chat", stream)
+    req(!is.null(stream))
+
+    live <- isolate(active_chat())
+    stream_tracking$chat_id <- live$chat_id
+    stream_tracking$assistant_turn_count <- get_assistant_turn_count(live)
+
+    set_chat_streaming(TRUE)
+
+    tryCatch(
+      chat_append("main_chat", stream),
+      error = function(e) {
+        set_chat_streaming(FALSE)
+        showNotification(
+          paste0("Unable to append streaming response: ", conditionMessage(e)),
+          type = "error"
+        )
+      }
+    )
   })
 
   report_controls_server(

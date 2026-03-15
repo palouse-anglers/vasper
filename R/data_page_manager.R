@@ -197,6 +197,12 @@ data_page_manager_server <- function(
     }
 
     add_selected_views <- function(table_names) {
+      table_names <- table_names |>
+        unlist(recursive = TRUE, use.names = FALSE) |>
+        as.character() |>
+        trimws()
+      table_names <- unique(table_names[nzchar(table_names)])
+
       combined <- unique(c(get_selected_table_names(), table_names))
       apply_selected_views(combined)
     }

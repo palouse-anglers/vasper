@@ -511,86 +511,19 @@ get_yield_historical_nass <- tool(
   )
 )
 
-# Initialize Main Chat with Weather Tools ----
-# Shared prompts (loaded from prompts/prompt.md) ----
-trim_blank_lines <- function(lines) {
-  out <- lines
+# Prompt Profiles and Chat Tool Registry ----
 
-  while (length(out) > 0 && !nzchar(trimws(out[[1]]))) {
-    out <- out[-1]
-  }
+prompt_config <- resolve_prompt_manifest(file.path("prompts", "manifest.json"))
+default_prompt_id <- prompt_config$default_prompt_id
 
-  while (length(out) > 0 && !nzchar(trimws(out[[length(out)]]))) {
-    out <- out[-length(out)]
-  }
-
-  out
-}
-
-extract_prompt_section <- function(lines, section_name) {
-  start_idx <- grep(
-    paste0("^##\\s+", section_name, "\\s*$"),
-    lines,
-    perl = TRUE
-  )
-
-  if (length(start_idx) == 0) {
-    return(NULL)
-  }
-
-  start <- start_idx[[1]]
-  next_headers <- grep("^##\\s+", lines)
-  next_headers <- next_headers[next_headers > start]
-  end <- if (length(next_headers) > 0) {
-    next_headers[[1]] - 1
-  } else {
-    length(lines)
-  }
-
-  body <- trim_blank_lines(lines[(start + 1):end])
-  if (length(body) == 0) {
-    return(NULL)
-  }
-
-  paste(body, collapse = "\n")
-}
-
-load_prompt_inputs <- function(path = file.path("prompts", "prompt.md")) {
-  if (!file.exists(path)) {
-    stop(
-      paste0("Missing required prompt file: ", path),
-      call. = FALSE
-    )
-  }
-
-  lines <- readLines(path, warn = FALSE, encoding = "UTF-8")
-
-  system_prompt <- extract_prompt_section(lines, "system_prompt")
-  chat_welcome_message <- extract_prompt_section(lines, "chat_welcome_message")
-
-  if (is.null(system_prompt) || !nzchar(trimws(system_prompt))) {
-    stop(
-      "Missing required '## system_prompt' section in prompts/prompt.md.",
-      call. = FALSE
-    )
-  }
-
-  if (is.null(chat_welcome_message) || !nzchar(trimws(chat_welcome_message))) {
-    stop(
-      "Missing required '## chat_welcome_message' section in prompts/prompt.md.",
-      call. = FALSE
-    )
-  }
-
-  list(
-    system_prompt = system_prompt,
-    chat_welcome_message = chat_welcome_message
-  )
-}
-
-prompt_inputs <- load_prompt_inputs()
-system_prompt <- prompt_inputs$system_prompt
-chat_welcome_message <- prompt_inputs$chat_welcome_message
+CHAT_TOOLS <- list(
+  get_weather_forecast_open_meteo = get_weather_forecast_open_meteo,
+  get_weather_historical_open_meteo = get_weather_historical_open_meteo,
+  get_weather_stations_davis = tool_get_weather_stations_davis,
+  get_weather_current_davis = tool_get_weather_current_davis,
+  get_weather_historical_davis = tool_get_weather_historical_davis,
+  get_yield_historical_nass = get_yield_historical_nass
+)
 
 # Detect available LLM provider based on environment variables
 chat_provider <- if (nzchar(Sys.getenv("ANTHROPIC_API_KEY"))) {
@@ -603,27 +536,32 @@ chat_provider <- if (nzchar(Sys.getenv("ANTHROPIC_API_KEY"))) {
   )
 }
 
-main_chat <- chat(
-  name = chat_provider,
-  system_prompt = system_prompt,
-  echo = "all"
-)
+create_chat_client <- function(system_prompt) {
+  chat(
+    name = chat_provider,
+    system_prompt = system_prompt,
+    echo = "all"
+  )
+}
 
-# Queue table names that should be auto-opened in Data views.
-data_view_queue <- new.env(parent = emptyenv())
-data_view_queue$table_names <- character()
+register_prompt_tools <- function(
+  chat_client,
+  prompt_profile,
+  extra_tools = list()
+) {
+  selected_tools <- resolve_prompt_tools(prompt_profile, CHAT_TOOLS)
+  all_tools <- c(selected_tools, extra_tools)
+
+  if (length(all_tools) > 0) {
+    chat_client$register_tools(unname(all_tools))
+  }
+
+  invisible(all_tools)
+}
 
 # Page Registry ----
 # Keep `app_pages` as runtime alias to preserve current call sites.
 app_pages <- APP_PAGES
-
-# Register tools
-main_chat$register_tool(get_weather_forecast_open_meteo)
-main_chat$register_tool(get_weather_historical_open_meteo)
-main_chat$register_tool(tool_get_weather_stations_davis)
-main_chat$register_tool(tool_get_weather_current_davis)
-main_chat$register_tool(tool_get_weather_historical_davis)
-main_chat$register_tool(get_yield_historical_nass)
 
 # Cleanup on app stop ----
 onStop(function() {

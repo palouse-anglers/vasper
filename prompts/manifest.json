@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "default_prompt_id": "default",
+  "prompts": [
+    {
+      "id": "default",
+      "name": "Vasper Advisor",
+      "file": "prompt.md",
+      "tool_policy": {
+        "mode": "all"
+      }
+    },
+    {
+      "id": "debugger",
+      "name": "Vasper Debugger",
+      "file": "debugger.md",
+      "tool_policy": {
+        "mode": "all"
+      }
+    }
+  ]
+}

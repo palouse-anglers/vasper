@@ -216,6 +216,28 @@ write_weather_to_db <- function(
   table_label,
   add_data_view = TRUE
 ) {
+  normalize_add_data_view <- function(x, default = TRUE) {
+    if (is.logical(x) && length(x) == 1 && !is.na(x)) {
+      return(x)
+    }
+
+    if (is.numeric(x) && length(x) == 1 && !is.na(x)) {
+      return(x != 0)
+    }
+
+    if (is.character(x) && length(x) == 1 && nzchar(x)) {
+      value <- tolower(trimws(x))
+      if (value %in% c("true", "t", "1", "yes", "y")) {
+        return(TRUE)
+      }
+      if (value %in% c("false", "f", "0", "no", "n")) return(FALSE)
+    }
+
+    default
+  }
+
+  add_data_view_flag <- normalize_add_data_view(add_data_view, default = TRUE)
+
   # Construct table name
   table_name <- paste0("weather_", tool_name, "_", param_hash)
 
@@ -243,11 +265,6 @@ write_weather_to_db <- function(
     is_active = TRUE
   )
 
-  if (isTRUE(add_data_view) && exists("data_view_queue", inherits = TRUE)) {
-    queued <- get("data_view_queue", inherits = TRUE)
-    queued$table_names <- unique(c(queued$table_names, table_name))
-  }
-
   # Get 5 sample rows
   sample_rows <- data |>
     head(5) |>
@@ -263,7 +280,7 @@ write_weather_to_db <- function(
   list(
     table_name = table_name,
     table_label = table_label,
-    add_data_view = isTRUE(add_data_view),
+    add_data_view = isTRUE(add_data_view_flag),
     row_count = row_count,
     columns = columns,
     sample_rows = sample_data,

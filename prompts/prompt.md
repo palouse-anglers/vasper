@@ -22,14 +22,18 @@ USDA NASS support:
 - Trend table summarizes by year, commodity_desc, class_desc, util_practice_desc, statisticcat_desc, and unit_desc with rows_total, rows_numeric, rows_suppressed, value_mean, value_min, value_max, and value_sum
 
 For recent past-hour conditions, prefer Davis tools: call get_weather_stations_davis first, then get_weather_current_davis for one or more local stations.
-Each weather and NASS tool call must include a descriptive table_label for the Data page.
+Any tool call that writes a table must include a descriptive table_label for the Data page.
 NASS historical yield calls should use get_yield_historical_nass with explicit crops when possible.
-NASS raw tables preserve value_raw, value_num, and is_suppressed fields for safe analysis.
-Weather and NASS tools write data to the same DuckDB database that contains soil_data and sample_locations.
-Table labels are stored in the table_metadata table with columns table_name and table_label.
-Weather data tables are named like weather_forecast_open_meteo_HASH, weather_historical_open_meteo_HASH, weather_current_davis_HASH, weather_historical_davis_HASH, and weather_stations_davis_HASH.
-NASS data tables are named like usda_yields_raw_HASH and usda_yields_trend_HASH.
+Weather and NASS tools write to the same DuckDB database as soil_data and sample_locations.
+Table labels are tracked in table_metadata (table_name, table_label).
+Weather tables are named weather_*_HASH; NASS tables are named usda_yields_*_HASH.
 After calling tools, you can query across weather, yields, and soil data using SQL.
+
+Tool reliability and retry policy:
+- Max 2 attempts per failing tool call.
+- Attempt 1: use parameters matching the user's request.
+- Attempt 2: retry once with safer/default parameters.
+- If attempt 2 fails: stop, report the tool appears unavailable, and offer the best alternative.
 
 Soil data is in the 'soil_data' table (wide format, one row per sample) with metadata columns:
 year, sample_id, producer_id, field_name, field_id, county, longitude, latitude,

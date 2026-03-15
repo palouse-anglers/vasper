@@ -241,8 +241,8 @@ navigation_bottom_bar_ui <- function() {
       ),
       actionLink(
         "clear_chat",
-        label = "Clear chat",
-        icon = icon("trash"),
+        label = "New chat",
+        icon = icon("plus"),
         class = "bottom-bar-mid-link"
       )
     ),
@@ -259,10 +259,9 @@ navigation_bottom_bar_ui <- function() {
 #' @param input Shiny input object
 #' @param output Shiny output object
 #' @param session Shiny session
-#' @param main_chat ellmer chat object
-#' @param chat_welcome_message Character scalar welcome message
 #' @param app_pages Named list of pages
 #' @param chat_id Character scalar chat UI id
+#' @param on_clear_chat Optional callback invoked when clear chat is requested
 #'
 #' @return List with navigation helpers/reactives
 #' @export
@@ -270,13 +269,40 @@ navigation_server <- function(
   input,
   output,
   session,
-  main_chat,
-  chat_welcome_message,
   app_pages = APP_PAGES,
-  chat_id = "main_chat"
+  chat_id = "main_chat",
+  on_clear_chat = NULL
 ) {
   active_page <- reactiveVal(NULL) # NULL = chat visible
   last_page <- reactiveVal("reports") # remember last page for toggle
+  footer_action_enabled <- reactiveValues(
+    clear_chat = TRUE,
+    toggle_view = TRUE
+  )
+
+  set_footer_action_enabled <- function(action_id, enabled = TRUE) {
+    req(is.character(action_id), length(action_id) == 1, nzchar(action_id))
+
+    footer_action_enabled[[action_id]] <- isTRUE(enabled)
+
+    session$sendCustomMessage(
+      "set-action-enabled",
+      list(
+        id = action_id,
+        enabled = isTRUE(enabled)
+      )
+    )
+
+    invisible(isTRUE(enabled))
+  }
+
+  is_footer_action_enabled <- function(action_id) {
+    value <- footer_action_enabled[[action_id]]
+    if (is.null(value)) {
+      return(TRUE)
+    }
+    isTRUE(value)
+  }
 
   set_active_nav <- function(page = c("chat", names(app_pages))) {
     page <- match.arg(page)
@@ -356,6 +382,10 @@ navigation_server <- function(
   }
 
   observeEvent(input$toggle_view, {
+    if (!is_footer_action_enabled("toggle_view")) {
+      return(invisible(NULL))
+    }
+
     if (is.null(active_page())) {
       navigate_to(last_page())
     } else {
@@ -372,9 +402,13 @@ navigation_server <- function(
   })
 
   observeEvent(input$clear_chat, {
-    main_chat$set_turns(list())
-    chat_clear(chat_id)
-    chat_append(chat_id, chat_welcome_message)
+    if (!is_footer_action_enabled("clear_chat")) {
+      return(invisible(NULL))
+    }
+
+    if (is.function(on_clear_chat)) {
+      on_clear_chat()
+    }
     navigate_to_chat()
   })
 
@@ -458,12 +492,13 @@ navigation_server <- function(
     )
   )
 
-  main_chat$register_tool(show_page)
-
   list(
     active_page = reactive(active_page()),
     last_page = reactive(last_page()),
     navigate_to = navigate_to,
-    navigate_to_chat = navigate_to_chat
+    navigate_to_chat = navigate_to_chat,
+    show_page_tool = show_page,
+    set_action_enabled = set_footer_action_enabled,
+    is_action_enabled = is_footer_action_enabled
   )
 }
