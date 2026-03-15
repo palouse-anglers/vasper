@@ -10,3 +10,7 @@ OPENAI_API_KEY=your_openai_api_key_here
 
 # USDA NASS API Key (for yield benchmarks)
 # USDA_NASS_API_KEY=your_usda_api_key_here
+
+# Davis WeatherLink API credentials
+DAVIS_API_KEY=your_davis_api_key_here
+DAVIS_API_SECRET=your_davis_api_secret_here

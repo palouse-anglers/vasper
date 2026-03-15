@@ -9,8 +9,10 @@ chat_welcome_message <- paste0(
   "I can fetch weather forecasts and historical data, navigate ",
   "app pages, and help you explore data in your region.",
   "<div class='suggestion'>What's the 7-day forecast for Columbia County?</div>",
-  "<div class='suggestion'>Get last year's rainfall for Columbia County</div>",
-  "<div class='suggestion'>Summarize wheat yields in spring in Columbia County</div>"
+  "<div class='suggestion'>Pull current and past 24 hours of Davis WeatherLink data for one station.</div>",
+  "<div class='suggestion'>Get historical rainfall totals for Columbia County from 2010 to 2024.</div>",
+  "<div class='suggestion'>Summarize wheat yields in spring in Columbia County</div>",
+  "<div class='suggestion'>Tell me what tools you have access to.</div>"
 )
 
 ui <- page_fillable(

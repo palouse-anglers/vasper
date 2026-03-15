@@ -156,8 +156,8 @@ hash_tool_params <- function(...) {
 
 # Register Weather Tools with ellmer ----
 
-# Tool: Get Weather Forecast
-get_weather_forecast <- tool(
+# Tool: Get Open-Meteo Forecast
+get_weather_forecast_open_meteo <- tool(
   function(
     latitude,
     longitude,
@@ -186,13 +186,13 @@ get_weather_forecast <- tool(
     write_weather_to_db(
       data = weather_data,
       con = con,
-      tool_name = "forecast",
+      tool_name = "forecast_open_meteo",
       param_hash = param_hash,
       table_label = table_label,
       add_data_view = add_data_view
     )
   },
-  name = "get_weather_forecast",
+  name = "get_weather_forecast_open_meteo",
   description = "Get weather forecast data for a location. Data is written to the database for SQL querying. Returns table metadata with sample rows.",
   arguments = list(
     latitude = type_number(
@@ -220,8 +220,8 @@ get_weather_forecast <- tool(
   )
 )
 
-# Tool: Get Historical Weather
-get_weather_historical <- tool(
+# Tool: Get Open-Meteo Historical Weather
+get_weather_historical_open_meteo <- tool(
   function(
     latitude,
     longitude,
@@ -252,14 +252,14 @@ get_weather_historical <- tool(
     write_weather_to_db(
       data = weather_data,
       con = con,
-      tool_name = "historical",
+      tool_name = "historical_open_meteo",
       param_hash = param_hash,
       table_label = table_label,
       add_data_view = add_data_view
     )
   },
-  name = "get_weather_historical",
-  description = "Get historical weather data for a location and date range. Data is written to the database for SQL querying. Returns table metadata with sample rows.",
+  name = "get_weather_historical_open_meteo",
+  description = "Get historical Open-Meteo weather data for a location and date range, including multi-year periods. Use this tool when historical analysis spans months or many years. Data is written to the database for SQL querying. Returns table metadata with sample rows.",
   arguments = list(
     latitude = type_number(
       "Latitude in decimal degrees (between -90 and 90)"
@@ -269,7 +269,7 @@ get_weather_historical <- tool(
     ),
     date_range = type_array(
       type_string(),
-      "Array of two dates in YYYY-MM-DD format: [start_date, end_date]"
+      "Array of two dates in YYYY-MM-DD format: [start_date, end_date]. Multi-year ranges are supported."
     ),
     table_label = type_string(
       "Required user-facing label for the output table in the Data page"
@@ -281,6 +281,154 @@ get_weather_historical <- tool(
     variables = type_array(
       type_string(),
       "Open-Meteo daily weather variables. Common options: temperature_2m_max, temperature_2m_min, precipitation_sum, wind_speed_10m_max, soil_temperature_0_to_7cm_mean, soil_moisture_0_to_7cm_mean",
+      required = FALSE
+    )
+  )
+)
+
+# Tool: List Davis Weather stations
+tool_get_weather_stations_davis <- tool(
+  function(
+    table_label,
+    add_data_view = TRUE
+  ) {
+    stations <- get_weather_stations_davis()
+
+    param_hash <- hash_tool_params(
+      api = "stations_davis"
+    )
+
+    write_weather_to_db(
+      data = stations,
+      con = con,
+      tool_name = "stations_davis",
+      param_hash = param_hash,
+      table_label = table_label,
+      add_data_view = add_data_view
+    )
+  },
+  name = "get_weather_stations_davis",
+  description = "Get Davis WeatherLink station metadata available to your API key. Writes results to DuckDB and returns table metadata.",
+  arguments = list(
+    table_label = type_string(
+      "Required user-facing label for the output table in the Data page"
+    ),
+    add_data_view = type_boolean(
+      "Whether to add this table as an open Data view (default TRUE)",
+      required = FALSE
+    )
+  )
+)
+
+# Tool: Get current Davis weather data
+tool_get_weather_current_davis <- tool(
+  function(
+    station_uuid,
+    sensor_types = NULL,
+    table_label,
+    add_data_view = TRUE
+  ) {
+    weather_data <- get_weather_current_davis(
+      station_uuid = station_uuid,
+      sensor_types = sensor_types
+    )
+
+    param_hash <- hash_tool_params(
+      station_uuid = station_uuid,
+      sensor_types = paste(
+        sort(if (is.null(sensor_types)) numeric(0) else sensor_types),
+        collapse = ","
+      )
+    )
+
+    write_weather_to_db(
+      data = weather_data,
+      con = con,
+      tool_name = "current_davis",
+      param_hash = param_hash,
+      table_label = table_label,
+      add_data_view = add_data_view
+    )
+  },
+  name = "get_weather_current_davis",
+  description = "Get current Davis WeatherLink weather records for one explicit station_uuid. If you do not already have a station_uuid, call get_weather_stations_davis first. Writes results to DuckDB and returns table metadata.",
+  arguments = list(
+    station_uuid = type_string(
+      "Required Davis station UUID (or station ID as a string). Call get_weather_stations_davis first if needed."
+    ),
+    sensor_types = type_array(
+      type_number(),
+      "Optional sensor type filter (for example [31])",
+      required = FALSE
+    ),
+    table_label = type_string(
+      "Required user-facing label for the output table in the Data page"
+    ),
+    add_data_view = type_boolean(
+      "Whether to add this table as an open Data view (default TRUE)",
+      required = FALSE
+    )
+  )
+)
+
+# Tool: Get historical Davis weather data
+tool_get_weather_historical_davis <- tool(
+  function(
+    station_uuid,
+    start_timestamp,
+    end_timestamp,
+    sensor_types = NULL,
+    table_label,
+    add_data_view = TRUE
+  ) {
+    weather_data <- get_weather_historical_davis(
+      station_uuid = station_uuid,
+      start_timestamp = start_timestamp,
+      end_timestamp = end_timestamp,
+      sensor_types = sensor_types
+    )
+
+    param_hash <- hash_tool_params(
+      station_uuid = station_uuid,
+      start_timestamp = as.integer(start_timestamp),
+      end_timestamp = as.integer(end_timestamp),
+      sensor_types = paste(
+        sort(if (is.null(sensor_types)) numeric(0) else sensor_types),
+        collapse = ","
+      )
+    )
+
+    write_weather_to_db(
+      data = weather_data,
+      con = con,
+      tool_name = "historical_davis",
+      param_hash = param_hash,
+      table_label = table_label,
+      add_data_view = add_data_view
+    )
+  },
+  name = "get_weather_historical_davis",
+  description = "Get historical Davis WeatherLink weather records for one explicit station_uuid and Unix timestamp window. This endpoint is best for short windows (up to 24 hours per call), not multi-year pulls. If you do not already have a station_uuid, call get_weather_stations_davis first. Writes results to DuckDB and returns table metadata.",
+  arguments = list(
+    station_uuid = type_string(
+      "Required Davis station UUID (or station ID as a string). Call get_weather_stations_davis first if needed."
+    ),
+    start_timestamp = type_number(
+      "Required Unix start timestamp in seconds"
+    ),
+    end_timestamp = type_number(
+      "Required Unix end timestamp in seconds (must be within 24 hours of start_timestamp; use repeated calls for longer history)"
+    ),
+    sensor_types = type_array(
+      type_number(),
+      "Optional sensor type filter (for example [31])",
+      required = FALSE
+    ),
+    table_label = type_string(
+      "Required user-facing label for the output table in the Data page"
+    ),
+    add_data_view = type_boolean(
+      "Whether to add this table as an open Data view (default TRUE)",
       required = FALSE
     )
   )
@@ -305,12 +453,15 @@ main_chat <- chat(
     "You primarily interact with farmers and producers who are on mobile devices.",
     "You have access to weather data tools and soil chemistry data.",
     "\nWeather tools:",
-    "- get_weather_forecast: Gets forecast data (up to 16 days)",
-    "- get_weather_historical: Gets historical weather data",
+    "- get_weather_forecast_open_meteo: Open-Meteo forecast data (up to 16 days)",
+    "- get_weather_historical_open_meteo: Open-Meteo historical weather data, including multi-year ranges",
+    "- get_weather_stations_davis: List Davis stations available to the API key",
+    "- get_weather_current_davis: Davis current weather records for an explicit station_uuid",
+    "- get_weather_historical_davis: Davis historical weather records for an explicit station_uuid and short Unix timestamp range (up to 24 hours per call)",
     "Each weather tool call must include a descriptive table_label for the Data page.",
     "Both weather tools write data to the same DuckDB database that contains soil_data and sample_locations.",
     "Table labels are stored in the table_metadata table with columns table_name and table_label.",
-    "Weather data tables are named weather_forecast_HASH or weather_historical_HASH.",
+    "Weather data tables are named like weather_forecast_open_meteo_HASH, weather_historical_open_meteo_HASH, weather_current_davis_HASH, weather_historical_davis_HASH, and weather_stations_davis_HASH.",
     "After calling a weather tool, you can query across weather and soil data using SQL.",
     "\nSoil data is in the 'soil_data' table (wide format, one row per sample) with metadata columns:",
     "year, sample_id, producer_id, field_name, field_id, county, longitude, latitude,",
@@ -336,8 +487,11 @@ data_view_queue$table_names <- character()
 app_pages <- APP_PAGES
 
 # Register tools
-main_chat$register_tool(get_weather_forecast)
-main_chat$register_tool(get_weather_historical)
+main_chat$register_tool(get_weather_forecast_open_meteo)
+main_chat$register_tool(get_weather_historical_open_meteo)
+main_chat$register_tool(tool_get_weather_stations_davis)
+main_chat$register_tool(tool_get_weather_current_davis)
+main_chat$register_tool(tool_get_weather_historical_davis)
 
 # Cleanup on app stop ----
 onStop(function() {
