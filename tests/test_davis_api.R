@@ -1,11 +1,14 @@
 # Davis WeatherLink API Tests
+#
+# Run from project root with:
+# Rscript tests/test_davis_api.R
 
 library(testthat)
 library(dplyr)
 library(purrr)
 library(tibble)
 
-source(testthat::test_path("..", "R", "davis_api.R"))
+source(file.path("R", "davis_api.R"))
 
 describe("flatten_davis_weather_records()", {
   test_that("flattens sensor rows and derives realts", {

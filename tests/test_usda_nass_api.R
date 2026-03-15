@@ -1,10 +1,13 @@
 # USDA NASS QuickStats API Tests
+#
+# Run from project root with:
+# Rscript tests/test_usda_nass_api.R
 
 library(testthat)
 library(tibble)
 
-source(testthat::test_path("..", "R", "table_metadata.R"))
-source(testthat::test_path("..", "R", "usda_nass_api.R"))
+source(file.path("R", "table_metadata.R"))
+source(file.path("R", "usda_nass_api.R"))
 
 describe("credentials and parsing", {
   test_that("get_usda_nass_credentials errors when key missing", {
