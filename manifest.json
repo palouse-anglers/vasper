@@ -5232,13 +5232,13 @@
   },
   "files": {
     ".Renviron": {
-      "checksum": "db09c8d1257a969968148a6c1c8b85c3"
+      "checksum": "68d3717bd4841ecdb4891422b1fb1066"
     },
     ".Renviron.template": {
-      "checksum": "32d1b7ada2e6dd4fbf92bb695409f45a"
+      "checksum": "6e05f8c0d483864ba21e8c032b01d004"
     },
     "app.R": {
-      "checksum": "1b3edec5aea6f03ce11b10ee315e314b"
+      "checksum": "711ced8b6a2cd207efcf0accda238289"
     },
     "data-raw/reformat_soil_data.R": {
       "checksum": "b14ac6e3b4f37328bb5898506f3f594f"
@@ -5250,22 +5250,46 @@
       "checksum": "3aa158757681d263cdf87c4f820e8e5d"
     },
     "global.R": {
-      "checksum": "2756cec71b4ba481f1dbd8389368eba0"
+      "checksum": "0c05a9adfc7015b74125b489b603423f"
+    },
+    "R/app_config.R": {
+      "checksum": "72d5a9529a0ec4000420f26c1fe2aacd"
+    },
+    "R/data_page_manager.R": {
+      "checksum": "73a02515a43208dcac1067d66246051e"
+    },
+    "R/data_page_module.R": {
+      "checksum": "5826cc98dc8bfc672e115d3f511805e7"
+    },
+    "R/davis_api.R": {
+      "checksum": "3ca645aa067444dc041c2820ad56eb8a"
+    },
+    "R/navigation_module.R": {
+      "checksum": "3ddc362b4a52a0942efcf5cb3ad858b8"
     },
     "R/render_report.R": {
-      "checksum": "57a1c8d5256e02c61db06d95f7385d32"
+      "checksum": "6cd50b8ce85a7ba06e458de0cf6754a4"
+    },
+    "R/report_controls_module.R": {
+      "checksum": "58af25595578bb13a8f50abcc2029505"
+    },
+    "R/report_service.R": {
+      "checksum": "d8607e8301ad57f7e0ddc90ce675420d"
+    },
+    "R/table_metadata.R": {
+      "checksum": "5a185f55b1d97489100a45ef7fea2dcd"
     },
     "R/weather_api.R": {
-      "checksum": "d9ef3eda8372e6eec8a11150e28704a6"
+      "checksum": "b759ad4fcb00edf1b477913aad224a98"
     },
     "README.md": {
-      "checksum": "10d32a8ea8eba0a924cb9037730b5875"
+      "checksum": "83bc8b626496b5990fd0492689aa7d9f"
     },
     "reports/01_producer-report.qmd": {
-      "checksum": "e9c04c8dd971b47dc042ab2aa731e023"
+      "checksum": "ea51f20ddb3ba6027904b2d0f39110d9"
     },
     "reports/02_section-template.qmd": {
-      "checksum": "4bddb9f9c0abaf03dada2ad127158207"
+      "checksum": "328e722c90048fda84f9ef19f1af30a9"
     },
     "reports/03_project-summary.qmd": {
       "checksum": "194238091197ab16d8772acef9a5033f"
@@ -5288,9 +5312,6 @@
     "reports/09_acknowledgement.qmd": {
       "checksum": "29c8353b50120cdabdf5381a69f6ea36"
     },
-    "reports/figure-output/map.png": {
-      "checksum": "4bb9481635268922417d903b93d3d591"
-    },
     "reports/images/biological.png": {
       "checksum": "6343c22f2d99f955cf460e5503581804"
     },
@@ -5309,8 +5330,20 @@
     "reports/resources/word-template.docx": {
       "checksum": "eaf4496f90d6b19a411effa19696f622"
     },
+    "tests/test_davis_api.R": {
+      "checksum": "9a727cceef84d707967bf6919622fc6e"
+    },
     "tests/test_weather_api.R": {
-      "checksum": "79a2f7471d853ac23e89dcbc74cc020a"
+      "checksum": "09d36c55599d3bb59c1d6c101821fccf"
+    },
+    "www/css/app.css": {
+      "checksum": "e23552abe0c888a485e0c1dcf21a495e"
+    },
+    "www/js/navigation.js": {
+      "checksum": "013eaf4fc0ad19c6fd262e241fb38e44"
+    },
+    "www/js/scroll.js": {
+      "checksum": "732770496841acb4df79db17b758d6bd"
     }
   },
   "users": null
