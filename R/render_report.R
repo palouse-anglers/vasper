@@ -33,7 +33,8 @@ render_report <- function(
   con = NULL,
   data_table = TABLE_NAMES$soil_data,
   dictionary_table = TABLE_NAMES$data_dictionary,
-  output_dir = "."
+  output_dir = ".",
+  progress_callback = NULL
 ) {
   format <- match.arg(format)
   year_start <- as.integer(year_start)
@@ -112,6 +113,175 @@ render_report <- function(
     quarto_args = c("--output-dir", output_dir)
   )
 
+  render_single_format <- function(
+    output_format,
+    output_file,
+    progress_offset = 0,
+    progress_scale = 1
+  ) {
+    report_input <- normalizePath(render_args$input, mustWork = TRUE)
+
+    emit_progress <- function(value, detail = NULL) {
+      if (is.null(progress_callback) || !is.function(progress_callback)) {
+        return(invisible(NULL))
+      }
+
+      bounded <- max(0, min(1, value))
+      progress_callback(bounded, detail)
+      invisible(NULL)
+    }
+
+    if (!requireNamespace("processx", quietly = TRUE)) {
+      do.call(
+        quarto::quarto_render,
+        c(
+          render_args,
+          list(
+            output_format = output_format,
+            output_file = output_file
+          )
+        )
+      )
+
+      emit_progress(progress_offset + progress_scale, "Report render complete")
+      return(invisible(NULL))
+    }
+
+    params_file <- tempfile(fileext = ".yml")
+    yaml::write_yaml(render_args$execute_params, params_file)
+    on.exit(unlink(params_file), add = TRUE)
+
+    format_label <- toupper(output_format)
+
+    parse_step_progress <- function(line) {
+      match <- regexec(
+        "^\\s*([0-9]+)\\s*/\\s*([0-9]+)\\s*(?:\\[(.*)\\])?\\s*$",
+        line,
+        perl = TRUE
+      )
+      parts <- regmatches(line, match)[[1]]
+
+      if (length(parts) == 0) {
+        return(NULL)
+      }
+
+      step <- suppressWarnings(as.integer(parts[[2]]))
+      total <- suppressWarnings(as.integer(parts[[3]]))
+      label <- if (length(parts) >= 4) trimws(parts[[4]]) else ""
+
+      if (is.na(step) || is.na(total) || total <= 0) {
+        return(NULL)
+      }
+
+      detail <- if (nzchar(label)) {
+        glue::glue("{format_label}: {label} ({step}/{total})")
+      } else {
+        glue::glue("{format_label}: Rendering ({step}/{total})")
+      }
+
+      list(
+        value = progress_offset + progress_scale * (step / total),
+        detail = detail
+      )
+    }
+
+    process <- processx::process$new(
+      command = quarto::quarto_path(),
+      args = c(
+        "render",
+        basename(report_input),
+        "--to",
+        output_format,
+        "--output",
+        output_file,
+        "--output-dir",
+        output_dir,
+        "--execute-dir",
+        render_args$execute_dir,
+        "--execute-params",
+        params_file
+      ),
+      wd = render_args$execute_dir,
+      stdout = "|",
+      stderr = "|",
+      cleanup = TRUE,
+      supervise = TRUE
+    )
+
+    log_lines <- character()
+
+    handle_lines <- function(lines) {
+      if (length(lines) == 0) {
+        return(invisible(NULL))
+      }
+
+      log_lines <<- c(log_lines, lines)
+
+      for (line in lines) {
+        parsed <- parse_step_progress(line)
+
+        if (!is.null(parsed)) {
+          emit_progress(parsed$value, parsed$detail)
+          next
+        }
+
+        if (grepl("^\\s*processing file:", line, ignore.case = TRUE)) {
+          emit_progress(
+            progress_offset + progress_scale * 0.02,
+            glue::glue("{format_label}: Preparing report")
+          )
+          next
+        }
+
+        if (grepl("^\\s*pandoc\\s*$", line, ignore.case = TRUE)) {
+          emit_progress(
+            progress_offset + progress_scale * 0.97,
+            glue::glue("{format_label}: Running Pandoc")
+          )
+          next
+        }
+
+        if (grepl("^\\s*Output created:", line, ignore.case = TRUE)) {
+          emit_progress(
+            progress_offset + progress_scale,
+            glue::glue("{format_label}: Output created")
+          )
+        }
+      }
+
+      invisible(NULL)
+    }
+
+    while (process$is_alive()) {
+      process$poll_io(250)
+      handle_lines(process$read_output_lines())
+      handle_lines(process$read_error_lines())
+    }
+
+    handle_lines(process$read_output_lines())
+    handle_lines(process$read_error_lines())
+
+    exit_status <- process$get_exit_status()
+
+    if (!identical(exit_status, 0L)) {
+      stop(
+        paste(
+          c(
+            glue::glue("Quarto render failed for format '{output_format}'."),
+            tail(log_lines, 20)
+          ),
+          collapse = "\n"
+        )
+      )
+    }
+
+    emit_progress(
+      progress_offset + progress_scale,
+      glue::glue("{format_label}: Render complete")
+    )
+    invisible(NULL)
+  }
+
   if (format == "all") {
     # Render each format separately rather than using output_format = "all".
     # Quarto's "all" mode keeps both pandoc processes and all R objects in
@@ -119,17 +289,16 @@ render_report <- function(
     # Sequential renders let R garbage-collect between passes,
     # cutting peak memory roughly in half.
     rendered_files <- character()
+    render_share <- 0.92
+    per_format_share <- render_share / 2
 
-    for (fmt in c("html", "docx")) {
-      do.call(
-        quarto::quarto_render,
-        c(
-          render_args,
-          list(
-            output_format = fmt,
-            output_file = glue::glue("{base_name}.{fmt}")
-          )
-        )
+    for (i in seq_along(c("html", "docx"))) {
+      fmt <- c("html", "docx")[[i]]
+      render_single_format(
+        output_format = fmt,
+        output_file = glue::glue("{base_name}.{fmt}"),
+        progress_offset = (i - 1) * per_format_share,
+        progress_scale = per_format_share
       )
 
       rendered_files <- c(
@@ -143,6 +312,10 @@ render_report <- function(
 
     zip_path <- file.path(output_dir, glue::glue("{base_name}.zip"))
 
+    if (!is.null(progress_callback) && is.function(progress_callback)) {
+      progress_callback(render_share + 0.03, "Creating ZIP archive")
+    }
+
     zip::zipr(
       zip_path,
       files = rendered_files,
@@ -150,20 +323,20 @@ render_report <- function(
       mode = "cherry-pick"
     )
 
+    if (!is.null(progress_callback) && is.function(progress_callback)) {
+      progress_callback(1, "ZIP archive ready")
+    }
+
     return(zip_path)
   }
 
   # Single format render
   output_file <- glue::glue("{base_name}.{format}")
-  do.call(
-    quarto::quarto_render,
-    c(
-      render_args,
-      list(
-        output_format = format,
-        output_file = output_file
-      )
-    )
+  render_single_format(
+    output_format = format,
+    output_file = output_file,
+    progress_offset = 0,
+    progress_scale = 1
   )
 
   file.path(output_dir, output_file)

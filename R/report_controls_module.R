@@ -177,28 +177,63 @@ report_controls_server <- function(
         year_start <- as.integer(min(input$report_year_range))
         year_end <- as.integer(max(input$report_year_range))
 
-        id <- showNotification(
-          "Rendering report... this may take a moment.",
-          duration = NULL,
-          type = "message"
-        )
-        on.exit(removeNotification(id), add = TRUE)
+        withProgress(
+          message = "Generating report",
+          detail = "Preparing data",
+          value = 0,
+          {
+            last_progress <- 0
 
-        report_path <- render_report(
-          producer_id = input$report_producer,
-          year_start = year_start,
-          year_end = year_end,
-          depth = input$report_depth,
-          format = input$report_format,
-          con = con,
-          data_table = data_table,
-          dictionary_table = dictionary_table,
-          output_dir = dirname(file)
-        )
+            progress_callback <- function(value, detail = NULL) {
+              bounded <- max(0, min(1, value))
+              # Reserve the last 10% for local copy/download work.
+              target <- min(0.9, bounded * 0.9)
 
-        if (!file.rename(report_path, file)) {
-          stop("Failed to deliver the rendered report.")
-        }
+              if (target <= last_progress) {
+                return(invisible(NULL))
+              }
+
+              increment <- target - last_progress
+              last_progress <<- target
+
+              if (!is.null(detail) && nzchar(detail)) {
+                incProgress(increment, detail = detail)
+              } else {
+                incProgress(increment)
+              }
+
+              invisible(NULL)
+            }
+
+            report_path <- render_report(
+              producer_id = input$report_producer,
+              year_start = year_start,
+              year_end = year_end,
+              depth = input$report_depth,
+              format = input$report_format,
+              con = con,
+              data_table = data_table,
+              dictionary_table = dictionary_table,
+              output_dir = dirname(file),
+              progress_callback = progress_callback
+            )
+
+            if (last_progress < 0.95) {
+              incProgress(0.95 - last_progress, detail = "Preparing download")
+              last_progress <- 0.95
+            }
+
+            copy_ok <- file.copy(report_path, file, overwrite = TRUE)
+
+            if (!copy_ok) {
+              stop("Failed to deliver the rendered report.")
+            }
+
+            if (last_progress < 1) {
+              incProgress(1 - last_progress, detail = "Download ready")
+            }
+          }
+        )
       }
     )
 
