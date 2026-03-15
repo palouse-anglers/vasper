@@ -169,6 +169,37 @@ validate_usda_nass_query <- function(
   invisible(TRUE)
 }
 
+normalize_usda_nass_query_values <- function(query) {
+  lapply(query, function(value) {
+    if (is.null(value)) {
+      return(NULL)
+    }
+
+    flattened <- if (is.list(value)) {
+      unlist(value, recursive = TRUE, use.names = FALSE)
+    } else {
+      value
+    }
+
+    if (!is.atomic(flattened)) {
+      stop(
+        "USDA NASS query values must be atomic vectors or scalar values.",
+        call. = FALSE
+      )
+    }
+
+    if (length(flattened) == 0) {
+      return(NULL)
+    }
+
+    if (is.factor(flattened)) {
+      flattened <- as.character(flattened)
+    }
+
+    flattened
+  })
+}
+
 #' Stop with clearer errors for USDA NASS HTTP responses
 #'
 #' @param response httr2 response
@@ -235,6 +266,7 @@ request_usda_nass_api <- function(
   format <- match.arg(format)
 
   validate_usda_nass_query(query = query, endpoint = endpoint)
+  query <- normalize_usda_nass_query_values(query)
   creds <- get_usda_nass_credentials()
 
   formats_to_try <- if (identical(format, "JSON") && isTRUE(fallback_csv)) {
@@ -260,7 +292,7 @@ request_usda_nass_api <- function(
       req <- httr2::request(
         paste0("https://quickstats.nass.usda.gov/api/", endpoint, "/")
       ) |>
-        httr2::req_url_query(!!!req_query) |>
+        httr2::req_url_query(!!!req_query, .multi = "explode") |>
         httr2::req_user_agent(
           "vasper/0.1 (+https://github.com/palouse-anglers/vasper)"
         ) |>
@@ -411,6 +443,16 @@ get_columbia_county_nass_raw <- function(
 ) {
   stopifnot(is.numeric(year_min), is.numeric(year_max), year_min <= year_max)
 
+  statistics <- toupper(trimws(as.character(statistics)))
+  statistics <- statistics[nzchar(statistics)]
+
+  if (length(statistics) == 0) {
+    stop(
+      "'statistics' must include at least one statistic category.",
+      call. = FALSE
+    )
+  }
+
   query <- list(
     source_desc = "SURVEY",
     sector_desc = "CROPS",
@@ -421,11 +463,16 @@ get_columbia_county_nass_raw <- function(
     agg_level_desc = "COUNTY",
     year__GE = as.integer(year_min),
     year__LE = as.integer(year_max),
-    statisticcat_desc = toupper(as.character(statistics))
+    statisticcat_desc = statistics
   )
 
   if (!is.null(crops) && length(crops) > 0) {
-    query$commodity_desc <- toupper(as.character(crops))
+    crops <- toupper(trimws(as.character(crops)))
+    crops <- crops[nzchar(crops)]
+
+    if (length(crops) > 0) {
+      query$commodity_desc <- crops
+    }
   }
 
   row_count <- get_usda_nass_count(query)

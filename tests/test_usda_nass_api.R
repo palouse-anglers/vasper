@@ -46,6 +46,18 @@ describe("credentials and parsing", {
       )
     )
   })
+
+  test_that("normalize_usda_nass_query_values flattens list values", {
+    normalized <- normalize_usda_nass_query_values(list(
+      commodity_desc = list("WHEAT", "BARLEY"),
+      statisticcat_desc = c("YIELD", "PRODUCTION"),
+      year__GE = 2000L
+    ))
+
+    expect_equal(normalized$commodity_desc, c("WHEAT", "BARLEY"))
+    expect_equal(normalized$statisticcat_desc, c("YIELD", "PRODUCTION"))
+    expect_equal(normalized$year__GE, 2000L)
+  })
 })
 
 describe("rate limit helpers", {
@@ -94,6 +106,85 @@ describe("trend derivation", {
       c("rows_total", "rows_numeric", "rows_suppressed") %in% names(trends)
     ))
     expect_equal(trends$rows_total[trends$year == 2022], 2)
+  })
+})
+
+describe("query shape regression", {
+  test_that("get_columbia_county_nass_raw preserves multi-value crop and statistic filters", {
+    captured_query <- NULL
+
+    old_get_count <- get("get_usda_nass_count", envir = .GlobalEnv)
+    old_request <- get("request_usda_nass_api", envir = .GlobalEnv)
+
+    assign(
+      "get_usda_nass_count",
+      function(query = list(), timeout_seconds = 30) {
+        captured_query <<- query
+        1L
+      },
+      envir = .GlobalEnv
+    )
+
+    assign(
+      "request_usda_nass_api",
+      function(
+        query = list(),
+        endpoint = c("api_GET", "get_counts", "get_param_values"),
+        timeout_seconds = 30,
+        format = c("JSON", "CSV"),
+        fallback_csv = TRUE,
+        max_retries = 2
+      ) {
+        tibble::tibble(
+          year = "2020",
+          commodity_desc = "WHEAT",
+          class_desc = "ALL CLASSES",
+          util_practice_desc = "GRAIN",
+          statisticcat_desc = "YIELD",
+          unit_desc = "BU / ACRE",
+          short_desc = "WHEAT - YIELD, MEASURED IN BU / ACRE",
+          value = "62.1"
+        )
+      },
+      envir = .GlobalEnv
+    )
+
+    withr::defer(assign(
+      "get_usda_nass_count",
+      old_get_count,
+      envir = .GlobalEnv
+    ))
+    withr::defer(assign(
+      "request_usda_nass_api",
+      old_request,
+      envir = .GlobalEnv
+    ))
+
+    raw_rows <- get_columbia_county_nass_raw(
+      crops = c("wheat", "barley"),
+      statistics = c("yield", "production", "area harvested"),
+      year_min = 2020,
+      year_max = 2021
+    )
+
+    expect_s3_class(raw_rows, "tbl_df")
+    expect_equal(captured_query$commodity_desc, c("WHEAT", "BARLEY"))
+    expect_equal(
+      captured_query$statisticcat_desc,
+      c("YIELD", "PRODUCTION", "AREA HARVESTED")
+    )
+  })
+
+  test_that("get_columbia_county_nass_raw errors for empty statistics", {
+    expect_error(
+      get_columbia_county_nass_raw(
+        crops = c("WHEAT"),
+        statistics = character(0),
+        year_min = 2020,
+        year_max = 2024
+      ),
+      "must include at least one statistic category"
+    )
   })
 })
 

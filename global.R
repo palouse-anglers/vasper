@@ -154,6 +154,44 @@ hash_tool_params <- function(...) {
   substr(digest(param_string, algo = "md5"), 1, 8)
 }
 
+normalize_optional_string_array <- function(x, default = NULL) {
+  if (is.null(x)) {
+    return(default)
+  }
+
+  values <- unlist(x, recursive = TRUE, use.names = FALSE)
+  values <- as.character(values)
+  values <- toupper(trimws(values))
+  values <- values[nzchar(values)]
+  values <- unique(values)
+
+  if (length(values) == 0) {
+    return(default)
+  }
+
+  values
+}
+
+normalize_integer_scalar <- function(x, name) {
+  values <- unlist(x, recursive = TRUE, use.names = FALSE)
+  if (length(values) != 1) {
+    stop(
+      paste0("'", name, "' must be a single numeric value."),
+      call. = FALSE
+    )
+  }
+
+  value <- suppressWarnings(as.integer(values[[1]]))
+  if (is.na(value)) {
+    stop(
+      paste0("'", name, "' must be a valid integer year."),
+      call. = FALSE
+    )
+  }
+
+  value
+}
+
 # Register Weather Tools with ellmer ----
 
 # Tool: Get Open-Meteo Forecast
@@ -444,8 +482,21 @@ get_yield_historical_nass <- tool(
     table_label,
     add_data_view = TRUE
   ) {
-    crops <- if (is.null(crops)) NULL else toupper(as.character(crops))
-    statistics <- toupper(as.character(statistics))
+    crops <- normalize_optional_string_array(crops, default = NULL)
+    statistics <- normalize_optional_string_array(
+      statistics,
+      default = c("YIELD", "PRODUCTION", "AREA HARVESTED")
+    )
+
+    year_min <- normalize_integer_scalar(year_min, "year_min")
+    year_max <- normalize_integer_scalar(year_max, "year_max")
+
+    if (year_min > year_max) {
+      stop(
+        "'year_min' must be less than or equal to 'year_max'.",
+        call. = FALSE
+      )
+    }
 
     param_hash <- hash_tool_params(
       crops = paste(
@@ -453,15 +504,15 @@ get_yield_historical_nass <- tool(
         collapse = ","
       ),
       statistics = paste(sort(statistics), collapse = ","),
-      year_min = as.integer(year_min),
-      year_max = as.integer(year_max)
+      year_min = year_min,
+      year_max = year_max
     )
 
     raw_data <- get_columbia_county_nass_raw(
       crops = crops,
       statistics = statistics,
-      year_min = as.integer(year_min),
-      year_max = as.integer(year_max)
+      year_min = year_min,
+      year_max = year_max
     )
 
     trend_data <- get_columbia_county_nass_trends(raw_data)
