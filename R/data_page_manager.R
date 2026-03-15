@@ -48,6 +48,15 @@ data_page_manager_server <- function(
     started_module_ids <- reactiveVal(character())
     selected_tables <- reactiveVal(list())
 
+    startup_tables <- unique(c(
+      unname(unlist(TABLE_NAMES, use.names = FALSE)),
+      "table_metadata"
+    ))
+
+    classify_table_group <- function(table_name) {
+      ifelse(table_name %in% startup_tables, "Core tables", "Session tables")
+    }
+
     format_table_choice <- function(
       table_name,
       table_label,
@@ -63,28 +72,55 @@ data_page_manager_server <- function(
 
       tags$div(
         class = "data-table-choice",
-        tags$div(tags$code(table_name)),
+        tags$div(
+          class = "data-table-choice-header",
+          tags$code(
+            class = "data-table-choice-name",
+            table_name
+          ),
+          tags$span(
+            class = "badge rounded-pill text-bg-light data-table-choice-group",
+            classify_table_group(table_name)
+          )
+        ),
         tags$div(class = "small text-muted", table_label),
         tags$div(class = "small text-muted", dim_label)
       )
     }
 
     tables_r <- reactive({
-      refresh_nonce_r()
-      list_data_tables(
-        con = con,
-        include_tables = include_tables,
-        ignore_tables = ignore_tables
-      )
+      md <- metadata_r()
+      if (nrow(md) == 0) {
+        return(character())
+      }
+
+      md$table_name
     })
 
     metadata_r <- reactive({
       refresh_nonce_r()
-      get_table_metadata(
+
+      md <- get_table_metadata(
         con = con,
         include_tables = include_tables,
         ignore_tables = ignore_tables
       )
+
+      if (nrow(md) == 0) {
+        return(md)
+      }
+
+      md |>
+        dplyr::mutate(
+          table_group = classify_table_group(table_name),
+          .group_rank = dplyr::if_else(
+            table_group == "Session tables",
+            1L,
+            2L
+          )
+        ) |>
+        dplyr::arrange(.group_rank, table_label, table_name) |>
+        dplyr::select(-.group_rank)
     })
 
     remove_module <- function(module_id) {
@@ -246,7 +282,8 @@ data_page_manager_server <- function(
               class = "btn btn-primary"
             )
           ),
-          size = "s"
+          size = "m",
+          class = "data-views-modal"
         )
       )
 

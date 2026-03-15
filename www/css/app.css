@@ -247,6 +247,52 @@
   min-height: 2.2rem;
 }
 
+/* Add views modal: responsive width + wrapped table choices */
+.data-views-modal .modal-dialog {
+  max-width: min(760px, 96vw);
+}
+
+.data-views-modal .modal-body {
+  max-height: min(70vh, 620px);
+  overflow-y: auto;
+}
+
+.data-views-modal .checkbox {
+  margin-bottom: 0.5rem;
+}
+
+.data-views-modal .checkbox label {
+  display: block;
+  width: 100%;
+  white-space: normal;
+}
+
+.data-table-choice {
+  width: 100%;
+  min-width: 0;
+}
+
+.data-table-choice-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.data-table-choice-name {
+  flex: 1 1 14rem;
+  min-width: 0;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.data-table-choice-group {
+  flex: 0 0 auto;
+}
+
 /* In-app acknowledgements shown above chat */
 .app-acknowledgements {
   margin: 0.4rem 0.75rem 0.5rem 0.75rem;
@@ -350,5 +396,14 @@
 
   .prompt-mode-suggestions {
     margin: 0 0.5rem 0.4rem 0.5rem;
+  }
+
+  .data-views-modal .modal-dialog {
+    max-width: calc(100vw - 1rem);
+    margin: 0.5rem;
+  }
+
+  .data-views-modal .modal-body {
+    max-height: calc(100vh - 9rem);
   }
 }

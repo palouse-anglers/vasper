@@ -46,14 +46,30 @@ deep_extract <- function(x, key) {
 parse_tool_result_data_view <- function(result) {
   result <- unwrap_tool_result(result)
 
-  add_flags <- unlist(
-    deep_extract(result, "add_data_view"),
-    use.names = FALSE
-  )
+  if (!is.list(result)) {
+    return(list(
+      should_queue = FALSE,
+      table_names = character(),
+      add_flags = logical()
+    ))
+  }
+
+  # Only honor explicit top-level add_data_view/table_name fields from
+  # write-to-DB tools. This avoids accidentally queueing views from nested
+  # metadata payloads (e.g., table catalogs that include table_name keys).
+  if (is.null(result$add_data_view)) {
+    return(list(
+      should_queue = FALSE,
+      table_names = character(),
+      add_flags = logical()
+    ))
+  }
+
+  add_flags <- unlist(result$add_data_view, use.names = FALSE)
 
   table_names <- normalize_table_names(c(
-    unlist(deep_extract(result, "table_name"), use.names = FALSE),
-    unlist(deep_extract(result, "table_names"), use.names = FALSE)
+    unlist(result$table_name %||% character(), use.names = FALSE),
+    unlist(result$table_names %||% character(), use.names = FALSE)
   ))
 
   if (length(table_names) == 0) {
