@@ -149,6 +149,8 @@ server <- function(input, output, session) {
     is_chat_streaming(value)
     navigation_api$set_action_enabled("clear_chat", enabled = !value)
     navigation_api$set_action_enabled("toggle_view", enabled = !value)
+    navigation_api$set_action_enabled("scroll_top", enabled = !value)
+    navigation_api$set_action_enabled("scroll_bottom", enabled = !value)
     invisible(value)
   }
 

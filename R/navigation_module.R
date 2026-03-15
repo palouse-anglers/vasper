@@ -277,7 +277,9 @@ navigation_server <- function(
   last_page <- reactiveVal("reports") # remember last page for toggle
   footer_action_enabled <- reactiveValues(
     clear_chat = TRUE,
-    toggle_view = TRUE
+    toggle_view = TRUE,
+    scroll_top = TRUE,
+    scroll_bottom = TRUE
   )
 
   set_footer_action_enabled <- function(action_id, enabled = TRUE) {
@@ -394,10 +396,18 @@ navigation_server <- function(
   })
 
   observeEvent(input$scroll_top, {
+    if (!is_footer_action_enabled("scroll_top")) {
+      return(invisible(NULL))
+    }
+
     scroll_active_content("top")
   })
 
   observeEvent(input$scroll_bottom, {
+    if (!is_footer_action_enabled("scroll_bottom")) {
+      return(invisible(NULL))
+    }
+
     scroll_active_content("bottom")
   })
 
