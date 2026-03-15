@@ -308,7 +308,7 @@ tool_get_weather_stations_davis <- tool(
     )
   },
   name = "get_weather_stations_davis",
-  description = "Get Davis WeatherLink station metadata available to your API key. Writes results to DuckDB and returns table metadata.",
+  description = "Get Davis WeatherLink station metadata available to your API key in the app's Columbia County, WA focus area. Use this first when users ask about recent hourly conditions. Writes results to DuckDB and returns table metadata.",
   arguments = list(
     table_label = type_string(
       "Required user-facing label for the output table in the Data page"
@@ -455,9 +455,10 @@ main_chat <- chat(
     "\nWeather tools:",
     "- get_weather_forecast_open_meteo: Open-Meteo forecast data (up to 16 days)",
     "- get_weather_historical_open_meteo: Open-Meteo historical weather data, including multi-year ranges",
-    "- get_weather_stations_davis: List Davis stations available to the API key",
+    "- get_weather_stations_davis: List Davis stations available to the API key in/near Columbia County, WA",
     "- get_weather_current_davis: Davis current weather records for an explicit station_uuid",
     "- get_weather_historical_davis: Davis historical weather records for an explicit station_uuid and short Unix timestamp range (up to 24 hours per call)",
+    "For recent past-hour conditions, prefer Davis tools: call get_weather_stations_davis first, then get_weather_current_davis for one or more local stations.",
     "Each weather tool call must include a descriptive table_label for the Data page.",
     "Both weather tools write data to the same DuckDB database that contains soil_data and sample_locations.",
     "Table labels are stored in the table_metadata table with columns table_name and table_label.",
