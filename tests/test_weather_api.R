@@ -1,5 +1,8 @@
 # Weather API Tests
 # Test suite for Open-Meteo API integration
+#
+# Run from project root with:
+# Rscript tests/test_weather_api.R
 
 library(testthat)
 library(httr2)

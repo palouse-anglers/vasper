@@ -434,6 +434,83 @@ tool_get_weather_historical_davis <- tool(
   )
 )
 
+# Tool: Get USDA NASS historical crop yield data
+get_yield_historical_nass <- tool(
+  function(
+    crops = NULL,
+    statistics = c("YIELD", "PRODUCTION", "AREA HARVESTED"),
+    year_min = 1980,
+    year_max = as.integer(format(Sys.Date(), "%Y")),
+    table_label,
+    add_data_view = TRUE
+  ) {
+    crops <- if (is.null(crops)) NULL else toupper(as.character(crops))
+    statistics <- toupper(as.character(statistics))
+
+    param_hash <- hash_tool_params(
+      crops = paste(
+        sort(if (is.null(crops)) character(0) else crops),
+        collapse = ","
+      ),
+      statistics = paste(sort(statistics), collapse = ","),
+      year_min = as.integer(year_min),
+      year_max = as.integer(year_max)
+    )
+
+    raw_data <- get_columbia_county_nass_raw(
+      crops = crops,
+      statistics = statistics,
+      year_min = as.integer(year_min),
+      year_max = as.integer(year_max)
+    )
+
+    trend_data <- get_columbia_county_nass_trends(raw_data)
+
+    write_yield_to_db(
+      raw_data = raw_data,
+      trend_data = trend_data,
+      con = con,
+      param_hash = param_hash,
+      table_label = table_label,
+      add_data_view = add_data_view
+    )
+  },
+  name = "get_yield_historical_nass",
+  description = paste(
+    "Get USDA NASS QuickStats historical county-level crop records for Columbia County, WA.",
+    "This writes paired DuckDB tables (raw and trend) for SQL analysis.",
+    "Use for questions about historical yield/production/harvested area for crops",
+    "such as wheat, barley, corn, lentils, and canola."
+  ),
+  arguments = list(
+    crops = type_array(
+      type_string(),
+      "Optional crop commodity filters (e.g. ['WHEAT', 'BARLEY', 'CORN']). Leave empty for all crops.",
+      required = FALSE
+    ),
+    statistics = type_array(
+      type_string(),
+      "Statistic categories to request (default: YIELD, PRODUCTION, AREA HARVESTED).",
+      required = FALSE
+    ),
+    year_min = type_number(
+      "Minimum year to include (default 1980)",
+      required = FALSE
+    ),
+    year_max = type_number(
+      "Maximum year to include (default current year)",
+      required = FALSE
+    ),
+    table_label = type_string(
+      "Required user-facing label for the output tables in the Data page"
+    ),
+    add_data_view = type_boolean(
+      "Whether to add output tables as open Data views (default TRUE)",
+      required = FALSE
+    )
+  )
+)
+
 # Initialize Main Chat with Weather Tools ----
 # Detect available LLM provider based on environment variables
 chat_provider <- if (nzchar(Sys.getenv("ANTHROPIC_API_KEY"))) {
@@ -458,12 +535,16 @@ main_chat <- chat(
     "- get_weather_stations_davis: List Davis stations available to the API key in/near Columbia County, WA",
     "- get_weather_current_davis: Davis current weather records for an explicit station_uuid",
     "- get_weather_historical_davis: Davis historical weather records for an explicit station_uuid and short Unix timestamp range (up to 24 hours per call)",
+    "- get_yield_historical_nass: USDA NASS QuickStats historical crop records for Columbia County, WA; writes paired raw and trend tables",
     "For recent past-hour conditions, prefer Davis tools: call get_weather_stations_davis first, then get_weather_current_davis for one or more local stations.",
     "Each weather tool call must include a descriptive table_label for the Data page.",
-    "Both weather tools write data to the same DuckDB database that contains soil_data and sample_locations.",
+    "NASS historical yield calls should use get_yield_historical_nass with explicit crops when possible.",
+    "NASS raw tables preserve value_raw, value_num, and is_suppressed fields for safe analysis.",
+    "Weather and NASS tools write data to the same DuckDB database that contains soil_data and sample_locations.",
     "Table labels are stored in the table_metadata table with columns table_name and table_label.",
     "Weather data tables are named like weather_forecast_open_meteo_HASH, weather_historical_open_meteo_HASH, weather_current_davis_HASH, weather_historical_davis_HASH, and weather_stations_davis_HASH.",
-    "After calling a weather tool, you can query across weather and soil data using SQL.",
+    "NASS data tables are named like usda_yields_raw_HASH and usda_yields_trend_HASH.",
+    "After calling tools, you can query across weather, yields, and soil data using SQL.",
     "\nSoil data is in the 'soil_data' table (wide format, one row per sample) with metadata columns:",
     "year, sample_id, producer_id, field_name, field_id, county, longitude, latitude,",
     "sample_date, depth, start_depth_inches, end_depth_inches, huc8_name, hc12_name, huc12",
@@ -493,6 +574,7 @@ main_chat$register_tool(get_weather_historical_open_meteo)
 main_chat$register_tool(tool_get_weather_stations_davis)
 main_chat$register_tool(tool_get_weather_current_davis)
 main_chat$register_tool(tool_get_weather_historical_davis)
+main_chat$register_tool(get_yield_historical_nass)
 
 # Cleanup on app stop ----
 onStop(function() {
