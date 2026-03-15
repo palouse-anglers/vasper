@@ -328,8 +328,16 @@ data_view_queue$table_names <- character()
 # Single source of truth for all navigable pages.
 # Add new pages here — hamburger menu, overlay panels, and tools all read from it.
 app_pages <- list(
-  reports = list(title = "Reports", icon = "file-alt"),
-  data = list(title = "Data", icon = "database")
+  data = list(
+    title = "Data",
+    icon = "database",
+    icon_fallback = "table"
+  ),
+  reports = list(
+    title = "Reports",
+    icon = "https://wa-department-of-agriculture.github.io/soils/logo.png",
+    icon_fallback = "file-alt"
+  )
 )
 
 # Register tools

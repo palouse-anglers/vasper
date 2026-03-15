@@ -1,5 +1,9 @@
 source("global.R")
 
+if (!("reports-images" %in% names(shiny::resourcePaths()))) {
+  shiny::addResourcePath("reports-images", "reports/images")
+}
+
 chat_welcome_message <- paste0(
   "I'm Vasper, your soil health and weather assistant. ",
   "I can fetch weather forecasts and historical data, navigate ",
@@ -9,12 +13,132 @@ chat_welcome_message <- paste0(
   "<div class='suggestion'>Summarize wheat yields in spring in Columbia County</div>"
 )
 
+normalize_fa_icon_name <- function(name) {
+  if (!is.character(name) || length(name) != 1 || !nzchar(name)) {
+    return(NA_character_)
+  }
+
+  # Support values like "fas fa-database" by extracting the icon token.
+  if (grepl("^fa[srb]?\\s+fa-", name)) {
+    name <- sub("^fa[srb]?\\s+fa-", "", name)
+  }
+
+  # Common FA4 -> FA6 aliases used in this app.
+  aliases <- c(
+    "file-alt" = "file-lines"
+  )
+
+  if (name %in% names(aliases)) {
+    return(unname(aliases[[name]]))
+  }
+
+  name
+}
+
+is_valid_fa_icon <- local({
+  icon_names <- NULL
+
+  function(name) {
+    nm <- normalize_fa_icon_name(name)
+    if (is.na(nm)) {
+      return(FALSE)
+    }
+
+    if (is.null(icon_names)) {
+      icon_names <<- tryCatch(
+        fontawesome::fa_metadata()$icon_names,
+        error = function(...) character()
+      )
+    }
+
+    if (length(icon_names) == 0) {
+      # If metadata is unavailable, avoid false negatives.
+      return(TRUE)
+    }
+
+    nm %in% icon_names
+  }
+})
+
+resolve_fa_icon <- function(primary_icon, fallback_icon = "file") {
+  primary <- normalize_fa_icon_name(primary_icon)
+  fallback <- normalize_fa_icon_name(fallback_icon)
+
+  if (!is.na(primary) && is_valid_fa_icon(primary)) {
+    return(primary)
+  }
+
+  if (!is.na(fallback) && is_valid_fa_icon(fallback)) {
+    return(fallback)
+  }
+
+  if (is_valid_fa_icon("file")) {
+    return("file")
+  }
+
+  if (!is.na(fallback)) {
+    return(fallback)
+  }
+
+  "file"
+}
+
+render_page_icon <- function(icon_value, alt = "", fallback_icon = "file") {
+  fallback_icon <- resolve_fa_icon(fallback_icon, "file")
+
+  if (
+    !is.character(icon_value) ||
+      length(icon_value) != 1 ||
+      !nzchar(icon_value)
+  ) {
+    return(icon(fallback_icon))
+  }
+
+  if (grepl("^https?://", icon_value)) {
+    fallback_html <- as.character(icon(fallback_icon))
+    fallback_html <- gsub("\n", "", fallback_html, fixed = TRUE)
+    fallback_html <- gsub("\\\\", "\\\\\\\\", fallback_html)
+    fallback_html <- gsub("'", "\\\\'", fallback_html, fixed = TRUE)
+
+    onerror_js <- paste0(
+      "this.onerror=null;this.outerHTML='",
+      fallback_html,
+      "';"
+    )
+
+    return(tags$img(
+      src = icon_value,
+      alt = alt,
+      class = "nav-icon-image",
+      width = "16",
+      height = "16",
+      style = "width:1em;height:1em;max-width:1em;max-height:1em;object-fit:contain;vertical-align:text-bottom;",
+      onerror = onerror_js
+    ))
+  }
+
+  icon(resolve_fa_icon(icon_value, fallback_icon))
+}
+
 # Build hamburger menu links from app_pages registry
 hamburger_links <- lapply(names(app_pages), function(key) {
   pg <- app_pages[[key]]
+  fallback_icon <- if (
+    is.character(pg$icon_fallback) &&
+      length(pg$icon_fallback) == 1 &&
+      nzchar(pg$icon_fallback)
+  ) {
+    pg$icon_fallback
+  } else {
+    "file-alt"
+  }
+
   actionLink(
     paste0("nav_", key),
-    label = tagList(icon(pg$icon), pg$title),
+    label = tagList(
+      render_page_icon(pg$icon, pg$title, fallback_icon = fallback_icon),
+      pg$title
+    ),
     class = "d-block py-1"
   )
 })
@@ -30,9 +154,22 @@ header_links <- c(
   ),
   lapply(names(app_pages), function(key) {
     pg <- app_pages[[key]]
+    fallback_icon <- if (
+      is.character(pg$icon_fallback) &&
+        length(pg$icon_fallback) == 1 &&
+        nzchar(pg$icon_fallback)
+    ) {
+      pg$icon_fallback
+    } else {
+      "file-alt"
+    }
+
     actionLink(
       paste0("hdr_", key),
-      label = tagList(icon(pg$icon), pg$title),
+      label = tagList(
+        render_page_icon(pg$icon, pg$title, fallback_icon = fallback_icon),
+        pg$title
+      ),
       class = "app-header-link"
     )
   })
@@ -130,6 +267,14 @@ ui <- page_fillable(
                 "Washington Soil Health Initiative.",
                 href = "https://washingtonsoilhealthinitiative.com/",
                 target = "_blank"
+              )
+            ),
+            tags$div(
+              class = "mb-3",
+              tags$img(
+                src = "reports-images/logo.png",
+                alt = "Soils logo",
+                style = "height: 44px; width: auto;"
               )
             ),
             hr(),

@@ -139,6 +139,19 @@
   color: inherit;
 }
 
+.nav-icon-image {
+  width: 1em !important;
+  height: 1em !important;
+  max-width: 1em !important;
+  max-height: 1em !important;
+  min-width: 1em;
+  min-height: 1em;
+  flex: 0 0 1em;
+  display: inline-block;
+  object-fit: contain;
+  vertical-align: text-bottom;
+}
+
 .app-header-link:hover,
 .app-header-link:focus {
   background: rgba(0, 0, 0, 0.05);
