@@ -31,7 +31,7 @@ APP_PAGES <- list(
   ),
   reports = list(
     title = "Reports",
-    icon = "https://wa-department-of-agriculture.github.io/soils/logo.png",
+    icon = "icons/soils-logo.png",
     icon_fallback = "file-alt"
   )
 )

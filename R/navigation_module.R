@@ -103,7 +103,13 @@ render_page_icon <- function(
     return(icon(fallback_icon))
   }
 
-  if (grepl("^https?://", icon_value)) {
+  is_image_path <- grepl(
+    "^(https?://|/|\\./|\\.\\./|[A-Za-z0-9_-]+/).+\\.(png|svg|gif|ico|webp)(\\?.*)?$",
+    icon_value,
+    ignore.case = TRUE
+  )
+
+  if (is_image_path) {
     fallback_html <- as.character(icon(fallback_icon))
     fallback_html <- gsub("\n", "", fallback_html, fixed = TRUE)
     fallback_html <- gsub("\\\\", "\\\\\\\\", fallback_html)

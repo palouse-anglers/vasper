@@ -192,6 +192,38 @@ normalize_integer_scalar <- function(x, name) {
   value
 }
 
+tool_icon_image <- function(src, alt = "", bg = NULL) {
+  if (
+    is.character(src) &&
+      length(src) == 1 &&
+      nzchar(src) &&
+      !grepl("^(https?://|/)", src)
+  ) {
+    src <- paste0("/", src)
+  }
+
+  icon_img <- tags$img(
+    src = src,
+    alt = alt,
+    style = "width:1.3em;height:1.3em;max-width:1.3em;max-height:1.3em;object-fit:contain;vertical-align:text-bottom;"
+  )
+
+  if (!is.character(bg) || length(bg) != 1 || !nzchar(bg)) {
+    return(icon_img)
+  }
+
+  tags$span(
+    style = paste0(
+      "display:inline-flex;align-items:center;justify-content:center;",
+      "width:1.3em;height:1.3em;max-width:1.3em;max-height:1.3em;",
+      "background-color:",
+      bg,
+      ";"
+    ),
+    icon_img
+  )
+}
+
 # Register Weather Tools with ellmer ----
 
 # Tool: Get Open-Meteo Forecast
@@ -255,6 +287,10 @@ get_weather_forecast_open_meteo <- tool(
       "Open-Meteo daily weather variables. Common options: temperature_2m_max, temperature_2m_min, precipitation_sum, wind_speed_10m_max, soil_temperature_0_to_7cm_mean, soil_moisture_0_to_7cm_mean (note: soil variables NOT available in forecast)",
       required = FALSE
     )
+  ),
+  annotations = tool_annotations(
+    title = "Open-Meteo Forecast",
+    icon = tool_icon_image("icons/open-meteo-favicon.ico", "Open-Meteo")
   )
 )
 
@@ -321,6 +357,10 @@ get_weather_historical_open_meteo <- tool(
       "Open-Meteo daily weather variables. Common options: temperature_2m_max, temperature_2m_min, precipitation_sum, wind_speed_10m_max, soil_temperature_0_to_7cm_mean, soil_moisture_0_to_7cm_mean",
       required = FALSE
     )
+  ),
+  annotations = tool_annotations(
+    title = "Open-Meteo Historical Weather",
+    icon = tool_icon_image("icons/open-meteo-favicon.ico", "Open-Meteo")
   )
 )
 
@@ -355,6 +395,10 @@ tool_get_weather_stations_davis <- tool(
       "Whether to add this table as an open Data view (default TRUE)",
       required = FALSE
     )
+  ),
+  annotations = tool_annotations(
+    title = "Davis Weather Stations",
+    icon = tool_icon_image("icons/weatherlink-logo.png", "WeatherLink")
   )
 )
 
@@ -406,6 +450,10 @@ tool_get_weather_current_davis <- tool(
       "Whether to add this table as an open Data view (default TRUE)",
       required = FALSE
     )
+  ),
+  annotations = tool_annotations(
+    title = "Davis Current Weather",
+    icon = tool_icon_image("icons/weatherlink-logo.png", "WeatherLink")
   )
 )
 
@@ -469,6 +517,10 @@ tool_get_weather_historical_davis <- tool(
       "Whether to add this table as an open Data view (default TRUE)",
       required = FALSE
     )
+  ),
+  annotations = tool_annotations(
+    title = "Davis Historical Weather",
+    icon = tool_icon_image("icons/weatherlink-logo.png", "WeatherLink")
   )
 )
 
@@ -558,6 +610,14 @@ get_yield_historical_nass <- tool(
     add_data_view = type_boolean(
       "Whether to add output tables as open Data views (default TRUE)",
       required = FALSE
+    )
+  ),
+  annotations = tool_annotations(
+    title = "USDA NASS",
+    icon = tool_icon_image(
+      "icons/usda-nass-logo.png",
+      "USDA NASS",
+      bg = "#09266A"
     )
   )
 )
