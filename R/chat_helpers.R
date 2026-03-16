@@ -8,6 +8,91 @@ normalize_table_names <- function(x) {
   unique(flat)
 }
 
+sanitize_chat_text_scalar <- function(x) {
+  if (!is.character(x) || length(x) != 1) {
+    return(NA_character_)
+  }
+
+  txt <- trimws(x)
+  if (!nzchar(txt)) {
+    return(NA_character_)
+  }
+
+  key <- tolower(gsub("\\s+", " ", txt))
+  nullish_tokens <- c(
+    "na",
+    "n/a",
+    "nan",
+    "null",
+    "none",
+    "nil",
+    "undefined",
+    "user na",
+    "assistant na",
+    "(null)",
+    "(none)",
+    "(empty)"
+  )
+
+  if (key %in% nullish_tokens) {
+    return(NA_character_)
+  }
+
+  txt
+}
+
+extract_turn_text_parts <- function(turn) {
+  contents <- tryCatch(turn@contents, error = function(e) list())
+  if (!is.list(contents) || length(contents) == 0) {
+    return(character())
+  }
+
+  text_parts <- vapply(
+    contents,
+    function(content) {
+      txt <- tryCatch(content@text, error = function(e) NA_character_)
+      sanitize_chat_text_scalar(txt)
+    },
+    character(1)
+  )
+
+  text_parts[!is.na(text_parts)]
+}
+
+normalize_turn_role <- function(turn) {
+  role <- tryCatch(turn@role, error = function(e) NA_character_)
+
+  if (!is.character(role) || length(role) != 1) {
+    return(NA_character_)
+  }
+
+  role <- tolower(trimws(role))
+  if (!role %in% c("user", "assistant")) {
+    return(NA_character_)
+  }
+
+  role
+}
+
+sanitize_turns_for_replay <- function(turns) {
+  if (!is.list(turns) || length(turns) == 0) {
+    return(list())
+  }
+
+  keep <- vapply(
+    turns,
+    function(turn) {
+      role <- normalize_turn_role(turn)
+      text_parts <- extract_turn_text_parts(turn)
+
+      !is.na(role) && length(text_parts) > 0
+    },
+    logical(1)
+  )
+
+  turns[keep]
+}
+
 unwrap_tool_result <- function(x) {
   if (inherits(x, "ellmer::ContentToolResult")) {
     return(unwrap_tool_result(x@value))
@@ -105,24 +190,12 @@ parse_tool_result_data_view <- function(result) {
 }
 
 get_turn_text <- function(turn) {
-  contents <- tryCatch(turn@contents, error = function(e) list())
-  if (!is.list(contents) || length(contents) == 0) {
+  text_parts <- extract_turn_text_parts(turn)
+  if (length(text_parts) == 0) {
     return("")
   }
 
-  text_parts <- vapply(
-    contents,
-    function(content) {
-      txt <- tryCatch(content@text, error = function(e) NA_character_)
-      if (is.character(txt) && length(txt) == 1 && nzchar(txt)) {
-        return(txt)
-      }
-      ""
-    },
-    character(1)
-  )
-
-  paste(text_parts[nzchar(text_parts)], collapse = "\n\n")
+  paste(text_parts, collapse = "\n\n")
 }
 
 get_user_turns <- function(entry) {

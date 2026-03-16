@@ -376,6 +376,8 @@ server <- function(input, output, session) {
     prompt_profile <- get_prompt_profile(prompt_config, selected$prompt_id)
 
     resumed <- create_live_chat_entry(prompt_profile$id)
+    # Keep full transcript for LLM continuity (including tool_use/tool_result
+    # pairs). UI replay is filtered separately in render_chat_turns().
     selected_turns <- selected$client$get_turns()
     resumed$client$set_turns(selected_turns)
     resumed$created_at <- selected$created_at
@@ -702,11 +704,14 @@ server <- function(input, output, session) {
   observeEvent(input$main_chat_user_input, {
     req(ensure_not_streaming("Sending another message"))
 
+    user_input <- sanitize_chat_text_scalar(input$main_chat_user_input)
+    req(!is.na(user_input))
+
     chat_state$live_chat$last_message_at <- Sys.time()
 
     stream <- tryCatch(
       active_chat()$client$stream_async(
-        input$main_chat_user_input,
+        user_input,
         tool_mode = "sequential",
         stream = "content"
       ),

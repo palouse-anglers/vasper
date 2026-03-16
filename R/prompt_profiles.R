@@ -232,33 +232,16 @@ render_chat_turns <- function(turns, chat_id) {
   chat_clear(chat_id)
 
   for (turn in turns) {
-    role <- tryCatch(turn@role, error = function(e) NA_character_)
-    contents <- tryCatch(turn@contents, error = function(e) list())
-
-    if (!is.list(contents) || length(contents) == 0) {
+    role_value <- normalize_turn_role(turn)
+    if (is.na(role_value)) {
       next
     }
 
-    text_parts <- vapply(
-      contents,
-      function(content) {
-        txt <- tryCatch(content@text, error = function(e) NA_character_)
-        if (is.character(txt) && length(txt) == 1 && nzchar(txt)) {
-          return(txt)
-        }
-
-        cls <- tryCatch(class(content)[[1]], error = function(e) "content")
-        paste0("[", cls, "]")
-      },
-      character(1)
-    )
-
-    text_parts <- text_parts[nzchar(text_parts)]
+    text_parts <- extract_turn_text_parts(turn)
     if (length(text_parts) == 0) {
       next
     }
 
-    role_value <- if (identical(role, "user")) "user" else "assistant"
     chat_append(
       chat_id,
       list(role = role_value, content = paste(text_parts, collapse = "\n\n"))
