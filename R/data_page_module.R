@@ -54,32 +54,44 @@ data_view_module_server <- function(
       md$table_label[[match_idx]]
     })
 
-    observe({
-      tables <- tables_r()
-      req(length(tables) > 0)
+    table_source <- reactive({
+      tbl <- selected_table()
+      req(tbl)
 
-      current <- selected_table()
-      if (is.null(current) || !current %in% tables) {
-        default_table <- tables[[1]]
-        selected_table(default_table)
+      md <- metadata_r()
+      req(nrow(md) > 0)
+
+      match_idx <- match(tbl, md$table_name)
+      if (is.na(match_idx) || !"source" %in% names(md)) {
+        return("unknown")
       }
 
-      updateSelectInput(
-        session,
-        "table_name",
-        choices = tables,
-        selected = selected_table()
-      )
+      md$source[[match_idx]] %||% "unknown"
     })
 
-    observeEvent(
-      input$table_name,
-      {
-        req(input$table_name)
-        selected_table(input$table_name)
-      },
-      ignoreInit = TRUE
-    )
+    table_source_detail <- reactive({
+      tbl <- selected_table()
+      req(tbl)
+
+      md <- metadata_r()
+      req(nrow(md) > 0)
+
+      match_idx <- match(tbl, md$table_name)
+      if (is.na(match_idx) || !"source_detail" %in% names(md)) {
+        return("")
+      }
+
+      md$source_detail[[match_idx]] %||% ""
+    })
+
+    observe({
+      tables <- tables_r()
+      current <- selected_table()
+
+      if (!is.null(current) && length(tables) > 0 && !(current %in% tables)) {
+        selected_table(NULL)
+      }
+    })
 
     observeEvent(
       selected_table(),
@@ -98,6 +110,42 @@ data_view_module_server <- function(
       remove_cb()
     })
 
+    observeEvent(input$show_source, {
+      tbl <- selected_table()
+      req(tbl)
+
+      source <- table_source()
+      detail <- table_source_detail()
+
+      showModal(
+        modalDialog(
+          title = paste("Table source:", tbl),
+          tagList(
+            tags$div(
+              class = "mb-2",
+              tags$strong("Source:"),
+              tags$span(class = "ms-2", source)
+            ),
+            if (nzchar(trimws(detail))) {
+              tags$pre(
+                class = "small",
+                style = "white-space: pre-wrap; word-break: break-word;",
+                detail
+              )
+            } else {
+              tags$div(
+                class = "small text-muted",
+                "No source details recorded."
+              )
+            }
+          ),
+          footer = modalButton("Close"),
+          easyClose = TRUE,
+          size = "m"
+        )
+      )
+    })
+
     output$table_preview <- renderDT(
       {
         refresh_nonce_r()
@@ -107,12 +155,10 @@ data_view_module_server <- function(
 
         escaped_tbl <- as.character(DBI::dbQuoteIdentifier(con, tbl))
 
-        dat <- DBI::dbGetQuery(
+        DBI::dbGetQuery(
           con,
           paste0("SELECT * FROM ", escaped_tbl, " LIMIT 500")
         )
-
-        dat
       },
       options = list(pageLength = 15, scrollX = TRUE)
     )
@@ -149,6 +195,13 @@ data_view_module_server <- function(
           title = if (collapsed()) "Expand" else "Collapse"
         ),
         actionButton(
+          session$ns("show_source"),
+          label = NULL,
+          icon = icon("circle-info"),
+          class = "btn btn-sm btn-outline-secondary",
+          title = "View source details"
+        ),
+        actionButton(
           session$ns("delete_module"),
           label = NULL,
           icon = icon("trash"),
@@ -179,25 +232,12 @@ data_view_module_server <- function(
         ),
         div(
           class = "card-body",
-          selectInput(
-            session$ns("table_name"),
-            label = "Table",
-            choices = tables_r(),
-            selected = selected_table(),
-            width = "100%"
-          ),
           if (!is.null(selected)) {
-            tagList(
-              div(
-                class = "text-muted small mb-2",
-                paste("Label:", table_label())
-              ),
-              DTOutput(session$ns("table_preview"))
-            )
+            DTOutput(session$ns("table_preview"))
           } else {
             div(
               class = "text-muted small mb-2",
-              "Select a table to load data."
+              "This table is no longer available. Use 'Manage views' to add or replace views."
             )
           }
         )

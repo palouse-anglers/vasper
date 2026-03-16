@@ -20,6 +20,12 @@ Status report format:
 Available tools include weather, USDA NASS, metadata, and page-navigation tools.
 Each data-producing tool call must include a descriptive table_label.
 After tool calls, use metadata or SQL-follow-up steps to confirm expected output tables exist.
+Use query_tables for SQL verification:
+- mode="vectorized" for explicit input_tables without FROM in sql
+- mode="free" for full SQL with FROM/JOIN (rejects input_tables)
+- Destructive SQL statements are blocked
+- Use DuckDB SQL syntax when composing query_tables SQL
+API fetch tools return metadata only; use query_tables to inspect values.
 
 For recent condition checks, prefer this sequence:
 - get_weather_stations_davis

@@ -14,6 +14,7 @@ ensure_table_metadata <- function(con) {
       table_name VARCHAR PRIMARY KEY,
       table_label VARCHAR NOT NULL,
       source VARCHAR,
+      source_detail VARCHAR,
       row_count BIGINT,
       column_count INTEGER,
       is_active INTEGER DEFAULT 1,
@@ -22,6 +23,18 @@ ensure_table_metadata <- function(con) {
     )
     "
   )
+
+  cols <- tryCatch(
+    DBI::dbGetQuery(con, "PRAGMA table_info('table_metadata')")$name,
+    error = function(e) character()
+  )
+
+  if (!"source_detail" %in% cols) {
+    DBI::dbExecute(
+      con,
+      "ALTER TABLE table_metadata ADD COLUMN source_detail VARCHAR"
+    )
+  }
 
   invisible(TRUE)
 }
@@ -43,6 +56,7 @@ upsert_table_metadata <- function(
   table_name,
   table_label,
   source = "system",
+  source_detail = NA_character_,
   row_count = NA_integer_,
   column_count = NA_integer_,
   is_active = TRUE
@@ -62,18 +76,20 @@ upsert_table_metadata <- function(
       table_name,
       table_label,
       source,
+      source_detail,
       row_count,
       column_count,
       is_active,
       created_at,
       updated_at
     )
-    VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+    VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
     ",
     params = list(
       table_name,
       table_label,
       source,
+      source_detail,
       row_count,
       column_count,
       as.integer(is_active)
@@ -124,7 +140,7 @@ sync_table_metadata_with_db <- function(
 
     existing <- DBI::dbGetQuery(
       con,
-      "SELECT table_label FROM table_metadata WHERE table_name = ?",
+      "SELECT table_label, source, source_detail FROM table_metadata WHERE table_name = ?",
       params = list(tbl)
     )
 
@@ -134,11 +150,34 @@ sync_table_metadata_with_db <- function(
       stringr::str_to_title(gsub("_", " ", tbl))
     }
 
+    source_value <- if (
+      nrow(existing) > 0 &&
+        !is.na(existing$source[[1]]) &&
+        nzchar(trimws(existing$source[[1]]))
+    ) {
+      existing$source[[1]]
+    } else if (tbl %in% include_tables) {
+      "system"
+    } else {
+      "sync"
+    }
+
+    source_detail_value <- if (
+      nrow(existing) > 0 &&
+        !is.na(existing$source_detail[[1]]) &&
+        nzchar(trimws(existing$source_detail[[1]]))
+    ) {
+      existing$source_detail[[1]]
+    } else {
+      NA_character_
+    }
+
     upsert_table_metadata(
       con = con,
       table_name = tbl,
       table_label = table_label,
-      source = if (tbl %in% include_tables) "system" else "sync",
+      source = source_value,
+      source_detail = source_detail_value,
       row_count = row_count,
       column_count = column_count,
       is_active = TRUE
@@ -174,6 +213,7 @@ get_table_metadata <- function(
       table_name,
       table_label,
       source,
+      source_detail,
       row_count,
       column_count,
       is_active,

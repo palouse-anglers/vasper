@@ -189,6 +189,16 @@ describe("query shape regression", {
 })
 
 describe("database writer", {
+  test_that("empty schema helpers return data frames with columns", {
+    raw_empty <- empty_nass_raw_tbl()
+    trend_empty <- empty_nass_trend_tbl()
+
+    expect_s3_class(raw_empty, "tbl_df")
+    expect_s3_class(trend_empty, "tbl_df")
+    expect_gt(ncol(raw_empty), 0)
+    expect_gt(ncol(trend_empty), 0)
+  })
+
   test_that("write_yield_to_db writes raw and trend tables and metadata", {
     con <- DBI::dbConnect(RSQLite::SQLite(), ":memory:")
     ensure_table_metadata(con)
@@ -228,12 +238,36 @@ describe("database writer", {
     )
 
     expect_true(length(result$table_name) == 2)
+    expect_equal(length(result$variable_names), 2)
+    expect_equal(length(result$dimensions), 2)
+    expect_equal(result$dimensions[[1]]$nrow, nrow(raw_data))
+    expect_equal(result$dimensions[[2]]$nrow, nrow(trend_data))
     expect_true(DBI::dbExistsTable(con, "usda_yields_raw_abc12345"))
     expect_true(DBI::dbExistsTable(con, "usda_yields_trend_abc12345"))
 
     metadata <- get_table_metadata(con, include_tables = c("table_metadata"))
     expect_true("usda_yields_raw_abc12345" %in% metadata$table_name)
     expect_true("usda_yields_trend_abc12345" %in% metadata$table_name)
+
+    DBI::dbDisconnect(con)
+  })
+
+  test_that("write_yield_to_db handles zero-column inputs", {
+    con <- DBI::dbConnect(RSQLite::SQLite(), ":memory:")
+    ensure_table_metadata(con)
+
+    result <- write_yield_to_db(
+      raw_data = tibble::tibble(),
+      trend_data = tibble::tibble(),
+      con = con,
+      param_hash = "empty123",
+      table_label = "Empty USDA",
+      add_data_view = FALSE
+    )
+
+    expect_true(DBI::dbExistsTable(con, "usda_yields_raw_empty123"))
+    expect_true(DBI::dbExistsTable(con, "usda_yields_trend_empty123"))
+    expect_equal(length(result$table_name), 2)
 
     DBI::dbDisconnect(con)
   })

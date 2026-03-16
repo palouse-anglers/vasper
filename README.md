@@ -4,6 +4,7 @@ Vasper the friendly VSP reporting tool
 
 The app registers the following tools in [global.R](global.R):
 
+- `query_tables` — Generic query tables tool
 - `get_weather_forecast_open_meteo` — Open-Meteo forecast data (up to 16 days)
 - `get_weather_historical_open_meteo` — Open-Meteo historical weather data (including multi-year ranges)
 - `get_weather_stations_davis` — Davis WeatherLink station metadata

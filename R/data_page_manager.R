@@ -1,5 +1,11 @@
 # Data Page Manager ----
 
+TABLE_GROUP_CONFIG <- list(
+  query_tables = list(label = "Query tables", rank = 1L),
+  api_query_tables = list(label = "API Query tables", rank = 2L),
+  built_in_tables = list(label = "Built-in tables", rank = 3L)
+)
+
 #' Data page manager UI
 #'
 #' @param id Module id
@@ -16,8 +22,8 @@ data_page_manager_ui <- function(id) {
       h5(class = "mb-0", "Data"),
       actionButton(
         ns("open_add_views"),
-        label = "Add views",
-        icon = icon("plus"),
+        label = "Manage views",
+        icon = icon("table-columns"),
         class = "btn btn-sm btn-outline-primary"
       )
     ),
@@ -53,8 +59,28 @@ data_page_manager_server <- function(
       "table_metadata"
     ))
 
-    classify_table_group <- function(table_name) {
-      ifelse(table_name %in% startup_tables, "Core tables", "Session tables")
+    table_group_label <- function(group_id) {
+      TABLE_GROUP_CONFIG[[group_id]]$label
+    }
+
+    table_group_rank <- function(group_id) {
+      TABLE_GROUP_CONFIG[[group_id]]$rank
+    }
+
+    table_group_id <- function(table_name, source = NA_character_) {
+      if (table_name %in% startup_tables) {
+        return("built_in_tables")
+      }
+
+      if (identical(source, "query_tables")) {
+        return("query_tables")
+      }
+
+      "api_query_tables"
+    }
+
+    classify_table_group <- function(table_name, source = NA_character_) {
+      table_group_label(table_group_id(table_name, source))
     }
 
     format_table_choice <- function(
@@ -74,17 +100,26 @@ data_page_manager_server <- function(
         class = "data-table-choice",
         tags$div(
           class = "data-table-choice-header",
-          tags$code(
-            class = "data-table-choice-name",
+          tags$span(
+            class = "data-table-choice-name font-monospace",
             table_name
           ),
           tags$span(
-            class = "badge rounded-pill text-bg-light data-table-choice-group",
-            classify_table_group(table_name)
+            class = "small text-muted data-table-choice-dims",
+            dim_label
           )
         ),
-        tags$div(class = "small text-muted", table_label),
-        tags$div(class = "small text-muted", dim_label)
+        tags$div(
+          class = "small text-muted data-table-choice-meta",
+          table_label
+        )
+      )
+    }
+
+    table_group_input_id <- function(group_label) {
+      paste0(
+        "add_tables_",
+        gsub("_+", "_", gsub("[^a-z0-9]+", "_", tolower(group_label)))
       )
     }
 
@@ -112,15 +147,20 @@ data_page_manager_server <- function(
 
       md |>
         dplyr::mutate(
-          table_group = classify_table_group(table_name),
-          .group_rank = dplyr::if_else(
-            table_group == "Session tables",
-            1L,
-            2L
-          )
+          .group_id = purrr::map2_chr(
+            table_name,
+            source,
+            table_group_id
+          ),
+          table_group = purrr::map2_chr(
+            table_name,
+            source,
+            classify_table_group
+          ),
+          .group_rank = vapply(.group_id, table_group_rank, integer(1))
         ) |>
         dplyr::arrange(.group_rank, table_label, table_name) |>
-        dplyr::select(-.group_rank)
+        dplyr::select(-.group_id, -.group_rank)
     })
 
     remove_module <- function(module_id) {
@@ -153,6 +193,8 @@ data_page_manager_server <- function(
         return(tibble::tibble(
           table_name = character(),
           table_label = character(),
+          source = character(),
+          source_detail = character(),
           row_count = integer(),
           column_count = integer()
         ))
@@ -162,6 +204,8 @@ data_page_manager_server <- function(
         dplyr::transmute(
           table_name,
           table_label,
+          source,
+          source_detail,
           row_count,
           column_count
         )
@@ -253,26 +297,36 @@ data_page_manager_server <- function(
 
       current_selected <- unlist(selected_tables(), use.names = FALSE)
 
-      choice_names <- lapply(seq_len(nrow(md)), function(i) {
-        format_table_choice(
-          table_name = md$table_name[[i]],
-          table_label = md$table_label[[i]],
-          row_count = md$row_count[[i]],
-          column_count = md$column_count[[i]]
-        )
-      })
+      group_sections <- md |>
+        dplyr::group_split(table_group, .keep = TRUE) |>
+        lapply(function(group_md) {
+          group_label <- group_md$table_group[[1]]
+          input_id <- table_group_input_id(group_label)
+
+          choice_names <- lapply(seq_len(nrow(group_md)), function(i) {
+            format_table_choice(
+              table_name = group_md$table_name[[i]],
+              table_label = group_md$table_label[[i]],
+              row_count = group_md$row_count[[i]],
+              column_count = group_md$column_count[[i]]
+            )
+          })
+
+          checkboxGroupInput(
+            session$ns(input_id),
+            label = group_label,
+            choiceNames = choice_names,
+            choiceValues = group_md$table_name,
+            selected = intersect(current_selected, group_md$table_name),
+            width = "100%"
+          )
+        })
 
       showModal(
         modalDialog(
           title = "Manage data views",
-          checkboxGroupInput(
-            session$ns("add_tables"),
-            label = "Select table(s)",
-            choiceNames = choice_names,
-            choiceValues = md$table_name,
-            selected = intersect(current_selected, md$table_name),
-            width = "100%"
-          ),
+          tags$div(class = "small text-muted mb-2", "Select table(s)"),
+          tagList(!!!group_sections),
           easyClose = TRUE,
           footer = tagList(
             modalButton("Cancel"),
@@ -291,8 +345,17 @@ data_page_manager_server <- function(
     })
 
     observeEvent(input$confirm_add_views, {
-      selected <- input$add_tables
-      if (is.null(selected)) {
+      md <- metadata_r()
+      groups <- unique(md$table_group)
+
+      selected <- unlist(
+        lapply(groups, function(group_label) {
+          input[[table_group_input_id(group_label)]] %||% character()
+        }),
+        use.names = FALSE
+      )
+
+      if (length(selected) == 0) {
         selected <- character()
       }
 
@@ -333,7 +396,7 @@ data_page_manager_server <- function(
       if (length(specs) == 0) {
         return(div(
           class = "text-muted",
-          "No data views yet. Use 'Add views' to create one or more."
+          "No data views yet. Use 'Manage views' to create one or more."
         ))
       }
 
@@ -347,7 +410,16 @@ data_page_manager_server <- function(
     })
 
     list(
-      get_metadata = get_min_table_metadata,
+      get_metadata = function(include_source = FALSE) {
+        md <- get_min_table_metadata()
+
+        if (isTRUE(include_source)) {
+          return(md)
+        }
+
+        keep <- c("table_name", "table_label", "row_count", "column_count")
+        md[, keep, drop = FALSE]
+      },
       set_views = apply_selected_views,
       get_selected_tables = get_selected_table_names,
       add_views = add_selected_views

@@ -426,6 +426,41 @@ nass_value_or <- function(x, default) {
   if (is.null(x)) default else x
 }
 
+empty_nass_raw_tbl <- function() {
+  tibble::tibble(
+    year = integer(),
+    commodity_desc = character(),
+    class_desc = character(),
+    util_practice_desc = character(),
+    statisticcat_desc = character(),
+    unit_desc = character(),
+    short_desc = character(),
+    value = character(),
+    value_raw = character(),
+    value_num = double(),
+    is_suppressed = logical(),
+    load_timestamp = as.POSIXct(character(), tz = "UTC")
+  )
+}
+
+empty_nass_trend_tbl <- function() {
+  tibble::tibble(
+    year = integer(),
+    commodity_desc = character(),
+    class_desc = character(),
+    util_practice_desc = character(),
+    statisticcat_desc = character(),
+    unit_desc = character(),
+    rows_total = integer(),
+    rows_numeric = integer(),
+    rows_suppressed = integer(),
+    value_mean = double(),
+    value_min = double(),
+    value_max = double(),
+    value_sum = double()
+  )
+}
+
 #' Fetch Columbia County, WA USDA NASS crop records
 #'
 #' @param crops Optional character vector of crop commodity names
@@ -478,7 +513,7 @@ get_columbia_county_nass_raw <- function(
   row_count <- get_usda_nass_count(query)
 
   if (is.na(row_count) || row_count == 0) {
-    return(tibble::tibble())
+    return(empty_nass_raw_tbl())
   }
 
   if (row_count > 50000) {
@@ -499,7 +534,7 @@ get_columbia_county_nass_raw <- function(
   } else if (is.list(payload) && "data" %in% names(payload)) {
     rows <- nass_value_or(payload$data, list())
     if (length(rows) == 0) {
-      return(tibble::tibble())
+      return(empty_nass_raw_tbl())
     }
     tibble::as_tibble(rows)
   } else {
@@ -541,7 +576,7 @@ get_columbia_county_nass_raw <- function(
 #' @export
 get_columbia_county_nass_trends <- function(raw_data) {
   if (nrow(raw_data) == 0) {
-    return(tibble::tibble())
+    return(empty_nass_trend_tbl())
   }
 
   raw_data |>
@@ -610,6 +645,14 @@ write_yield_to_db <- function(
   table_label,
   add_data_view = TRUE
 ) {
+  if (!is.data.frame(raw_data) || ncol(raw_data) == 0) {
+    raw_data <- empty_nass_raw_tbl()
+  }
+
+  if (!is.data.frame(trend_data) || ncol(trend_data) == 0) {
+    trend_data <- empty_nass_trend_tbl()
+  }
+
   raw_table_name <- paste0("usda_yields_raw_", param_hash)
   trend_table_name <- paste0("usda_yields_trend_", param_hash)
 
@@ -626,6 +669,10 @@ write_yield_to_db <- function(
     table_name = raw_table_name,
     table_label = paste0(table_label, " (Raw)"),
     source = "usda_nass_raw",
+    source_detail = paste0(
+      "tool=get_yield_historical_nass; table_role=raw; param_hash=",
+      param_hash
+    ),
     row_count = nrow(raw_data),
     column_count = ncol(raw_data),
     is_active = TRUE
@@ -636,42 +683,14 @@ write_yield_to_db <- function(
     table_name = trend_table_name,
     table_label = paste0(table_label, " (Trend)"),
     source = "usda_nass_trend",
+    source_detail = paste0(
+      "tool=get_yield_historical_nass; table_role=trend; param_hash=",
+      param_hash
+    ),
     row_count = nrow(trend_data),
     column_count = ncol(trend_data),
     is_active = TRUE
   )
-
-  raw_sample <- if (nrow(raw_data) > 0) {
-    raw_data |>
-      head(5) |>
-      as.list() |>
-      purrr::map(function(col) {
-        if (inherits(col, "Date") || inherits(col, "POSIXt")) {
-          as.character(col)
-        } else {
-          col
-        }
-      }) |>
-      purrr::transpose()
-  } else {
-    list()
-  }
-
-  trend_sample <- if (nrow(trend_data) > 0) {
-    trend_data |>
-      head(5) |>
-      as.list() |>
-      purrr::map(function(col) {
-        if (inherits(col, "Date") || inherits(col, "POSIXt")) {
-          as.character(col)
-        } else {
-          col
-        }
-      }) |>
-      purrr::transpose()
-  } else {
-    list()
-  }
 
   list(
     table_name = c(raw_table_name, trend_table_name),
@@ -680,18 +699,19 @@ write_yield_to_db <- function(
       paste0(table_label, " (Trend)")
     ),
     add_data_view = isTRUE(add_data_view),
-    rows_raw = nrow(raw_data),
-    rows_trend = nrow(trend_data),
-    columns_raw = names(raw_data),
-    columns_trend = names(trend_data),
-    sample_rows_raw = raw_sample,
-    sample_rows_trend = trend_sample,
-    message = paste0(
-      "USDA NASS data saved to '",
-      raw_table_name,
-      "' and '",
-      trend_table_name,
-      "'. You can now query both tables using SQL."
+    variable_names = list(
+      names(raw_data),
+      names(trend_data)
+    ),
+    dimensions = list(
+      list(
+        nrow = as.integer(nrow(raw_data)),
+        ncol = as.integer(ncol(raw_data))
+      ),
+      list(
+        nrow = as.integer(nrow(trend_data)),
+        ncol = as.integer(ncol(trend_data))
+      )
     )
   )
 }

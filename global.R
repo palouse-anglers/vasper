@@ -97,6 +97,7 @@ upsert_table_metadata(
   table_name = TABLE_NAMES$soil_data,
   table_label = "Soil Data",
   source = "startup",
+  source_detail = "Loaded at startup data file",
   row_count = DBI::dbGetQuery(
     con,
     glue::glue("SELECT COUNT(*) AS n FROM {TABLE_NAMES$soil_data}")
@@ -110,6 +111,7 @@ upsert_table_metadata(
   table_name = TABLE_NAMES$data_dictionary,
   table_label = "Data Dictionary",
   source = "startup",
+  source_detail = "Loaded at startup from data file",
   row_count = DBI::dbGetQuery(
     con,
     glue::glue("SELECT COUNT(*) AS n FROM {TABLE_NAMES$data_dictionary}")
@@ -123,6 +125,7 @@ upsert_table_metadata(
   table_name = TABLE_NAMES$sample_locations,
   table_label = "Sample Locations",
   source = "startup",
+  source_detail = "Derived at startup from soil_data grouped by latitude/longitude",
   row_count = DBI::dbGetQuery(
     con,
     glue::glue("SELECT COUNT(*) AS n FROM {TABLE_NAMES$sample_locations}")
@@ -136,6 +139,7 @@ upsert_table_metadata(
   table_name = TABLE_NAMES$table_metadata,
   table_label = "Table Metadata",
   source = "system",
+  source_detail = "System registry table",
   row_count = DBI::dbGetQuery(
     con,
     glue::glue("SELECT COUNT(*) AS n FROM {TABLE_NAMES$table_metadata}")
@@ -263,7 +267,7 @@ get_weather_forecast_open_meteo <- tool(
     )
   },
   name = "get_weather_forecast_open_meteo",
-  description = "Get weather forecast data for a location. Data is written to the database for SQL querying. Returns table metadata with sample rows.",
+  description = "Get weather forecast data for a location. Data is written to the database for SQL querying. Returns only table metadata (name, label, variable names, dimensions).",
   arguments = list(
     latitude = type_number(
       "Latitude in decimal degrees (between -90 and 90)"
@@ -333,7 +337,7 @@ get_weather_historical_open_meteo <- tool(
     )
   },
   name = "get_weather_historical_open_meteo",
-  description = "Get historical Open-Meteo weather data for a location and date range, including multi-year periods. Use this tool when historical analysis spans months or many years. Data is written to the database for SQL querying. Returns table metadata with sample rows.",
+  description = "Get historical Open-Meteo weather data for a location and date range, including multi-year periods. Use this tool when historical analysis spans months or many years. Data is written to the database for SQL querying. Returns only table metadata (name, label, variable names, dimensions).",
   arguments = list(
     latitude = type_number(
       "Latitude in decimal degrees (between -90 and 90)"
@@ -613,12 +617,90 @@ get_yield_historical_nass <- tool(
     )
   ),
   annotations = tool_annotations(
-    title = "USDA NASS",
+    title = "USDA NASS Crop History",
     icon = tool_icon_image(
       "icons/usda-nass-logo.png",
       "USDA NASS",
       bg = "#09266A"
     )
+  )
+)
+
+# Tool: Query tables with SQL
+query_tables <- tool(
+  function(
+    sql,
+    mode = NULL,
+    input_tables = NULL,
+    output_table_names = NULL,
+    output_table_labels = NULL,
+    persist = FALSE,
+    add_data_view = TRUE,
+    max_rows = 200
+  ) {
+    run_query_tables(
+      con = con,
+      mode = mode,
+      sql = sql,
+      input_tables = input_tables,
+      output_table_names = output_table_names,
+      output_table_labels = output_table_labels,
+      persist = isTRUE(persist),
+      add_data_view = isTRUE(add_data_view),
+      max_rows = as.integer(max_rows)
+    )
+  },
+  name = "query_tables",
+  description = paste(
+    "Run DuckDB SQL against in-memory tables.",
+    "Prefer SQL for most arithmetic, aggregations, and comparisons because results are reviewable and reliable.",
+    "If table names are uncertain, call get_data_table_metadata first.",
+    "Use mode='vectorized' to apply one SQL suffix across explicit input tables",
+    "(SQL must not contain FROM; it is appended after FROM each input table).",
+    "Use mode='free' for full SQL with FROM/JOIN; free mode rejects input_tables.",
+    "Destructive SQL statements are blocked.",
+    "Persist results when they will be reused for artifacts/evidence; avoid persisting one-off exploration or tiny (<5 row) outputs."
+  ),
+  arguments = list(
+    sql = type_string(
+      "DuckDB SQL text. For vectorized mode, provide SQL appended after FROM <table> (e.g., 'WHERE year >= 2020 ORDER BY year'). For free mode, provide full DuckDB SQL."
+    ),
+    mode = type_enum(
+      "Execution mode: vectorized (for input_tables) or free (full SQL with FROM). If omitted, defaults to free when only sql is provided.",
+      values = c("vectorized", "free"),
+      required = FALSE
+    ),
+    input_tables = type_array(
+      type_string(),
+      "Required for vectorized mode. Free mode rejects this argument.",
+      required = FALSE
+    ),
+    output_table_names = type_array(
+      type_string(),
+      "Output table names. For vectorized mode, length must match input_tables and output_table_labels. For free mode, provide at most one name.",
+      required = FALSE
+    ),
+    output_table_labels = type_array(
+      type_string(),
+      "Output table labels aligned with output_table_names.",
+      required = FALSE
+    ),
+    persist = type_boolean(
+      "Whether to persist query result(s) as table(s). Use TRUE for reusable artifact/evidence tables; keep FALSE for one-off exploration or tiny (<5 row) outputs.",
+      required = FALSE
+    ),
+    add_data_view = type_boolean(
+      "When persist=TRUE, whether to queue saved tables for Data view (default TRUE).",
+      required = FALSE
+    ),
+    max_rows = type_number(
+      "When persist=FALSE, maximum rows returned in result_rows preview (default 200).",
+      required = FALSE
+    )
+  ),
+  annotations = tool_annotations(
+    title = "Query Tables",
+    icon = icon("database")
   )
 )
 
@@ -633,7 +715,8 @@ CHAT_TOOLS <- list(
   get_weather_stations_davis = tool_get_weather_stations_davis,
   get_weather_current_davis = tool_get_weather_current_davis,
   get_weather_historical_davis = tool_get_weather_historical_davis,
-  get_yield_historical_nass = get_yield_historical_nass
+  get_yield_historical_nass = get_yield_historical_nass,
+  query_tables = query_tables
 )
 
 # Detect available LLM provider based on environment variables

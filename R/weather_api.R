@@ -206,7 +206,7 @@ get_n_day_forecast <- function(
 #' @param table_label User-facing label for the table metadata registry
 #' @param add_data_view Whether this table should be added to Data views
 #'
-#' @return List with table metadata and sample rows
+#' @return List with table metadata only
 #' @export
 write_weather_to_db <- function(
   data,
@@ -260,37 +260,26 @@ write_weather_to_db <- function(
     table_name = table_name,
     table_label = table_label,
     source = paste0("weather_", tool_name),
+    source_detail = paste0(
+      "tool=",
+      paste0("get_weather_", tool_name),
+      "; param_hash=",
+      param_hash
+    ),
     row_count = row_count,
     column_count = length(columns),
     is_active = TRUE
   )
-
-  # Get 5 sample rows
-  sample_rows <- data |>
-    head(5) |>
-    as.list() |>
-    lapply(function(col) {
-      if (inherits(col, "Date")) as.character(col) else col
-    })
-
-  # Convert to list of row objects
-  sample_data <- purrr::transpose(sample_rows)
 
   # Return metadata as JSON-serializable list
   list(
     table_name = table_name,
     table_label = table_label,
     add_data_view = isTRUE(add_data_view_flag),
-    row_count = row_count,
-    columns = columns,
-    sample_rows = sample_data,
-    message = paste0(
-      "Weather data saved to database table '",
-      table_name,
-      "' with ",
-      row_count,
-      " rows. ",
-      "You can now query this table using SQL."
+    variable_names = columns,
+    dimensions = list(
+      nrow = as.integer(row_count),
+      ncol = as.integer(length(columns))
     )
   )
 }

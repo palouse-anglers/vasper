@@ -223,7 +223,9 @@ describe("Database Integration", {
     )
 
     expect_true("table_name" %in% names(result))
-    expect_equal(result$row_count, 7)
+    expect_equal(result$dimensions$nrow, 7)
+    expect_equal(result$dimensions$ncol, ncol(test_data))
+    expect_equal(result$variable_names, names(test_data))
     expect_true(DBI::dbExistsTable(con, result$table_name))
 
     md <- get_table_metadata(con, include_tables = c("table_metadata"))

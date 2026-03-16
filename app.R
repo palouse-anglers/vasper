@@ -88,10 +88,55 @@ server <- function(input, output, session) {
   )
 
   get_data_table_metadata <- tool(
-    function() {
-      md <- data_page_api$get_metadata()
+    function(
+      include_source = FALSE,
+      table_pattern = NULL,
+      table_names = NULL
+    ) {
+      md <- data_page_api$get_metadata(include_source = isTRUE(include_source))
+
+      if (!is.null(table_pattern) && length(table_pattern) > 0) {
+        pattern <- as.character(table_pattern[[1]])
+        pattern <- trimws(pattern)
+
+        if (nzchar(pattern)) {
+          matches <- grepl(pattern, md$table_name, ignore.case = TRUE)
+          md <- md[matches, , drop = FALSE]
+        }
+      }
+
+      if (!is.null(table_names) && length(table_names) > 0) {
+        table_names <- unlist(table_names, recursive = TRUE, use.names = FALSE)
+        table_names <- as.character(table_names)
+        table_names <- trimws(table_names)
+        table_names <- table_names[nzchar(table_names)]
+
+        if (length(table_names) > 0) {
+          md <- md[md$table_name %in% table_names, , drop = FALSE]
+        }
+      }
+
       if (nrow(md) == 0) {
         return(list(tables = list()))
+      }
+
+      md$column_names <- lapply(md$table_name, function(tbl) {
+        tryCatch(
+          DBI::dbListFields(con, tbl),
+          error = function(e) character()
+        )
+      })
+
+      if (!isTRUE(include_source)) {
+        keep <- c(
+          "table_name",
+          "table_label",
+          "row_count",
+          "column_count",
+          "column_names"
+        )
+        keep <- intersect(keep, names(md))
+        md <- md[, keep, drop = FALSE]
       }
 
       list(
@@ -101,7 +146,24 @@ server <- function(input, output, session) {
     name = "get_data_table_metadata",
     description = paste(
       "Get available data tables from table_metadata with minimal details",
-      "(table_name, table_label, row_count, column_count)."
+      "(table_name, table_label, row_count, column_count, column_names).",
+      "Use include_source=TRUE to include source and source_detail provenance only when you need it for SQL.",
+      "Supports table_pattern regex matching and exact table_names filtering."
+    ),
+    arguments = list(
+      include_source = type_boolean(
+        "Include source and source_detail provenance fields (default FALSE)",
+        required = FALSE
+      ),
+      table_pattern = type_string(
+        "Optional regex pattern to filter table_name values",
+        required = FALSE
+      ),
+      table_names = type_array(
+        type_string(),
+        "Optional exact table_name filter list",
+        required = FALSE
+      )
     )
   )
 
