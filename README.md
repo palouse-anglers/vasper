@@ -20,9 +20,13 @@ Vasper uses the following data tools and services:
 - [Open-Meteo API](https://open-meteo.com/)
 - [Davis Instruments WeatherLink v2 API](https://weatherlink.github.io/v2-api/)
 - [USDA NASS QuickStats API](https://quickstats.nass.usda.gov/api)
+- {shiny}, {shinychat}, {ellmer}, {duckdb}, and [R packages listed in manifest.json](manifest.json)
+
 
 The {soils} package was developed by the Washington State Department of
 Agriculture and Washington State University as part of the Washington Soil
 Health Initiative.
 
 This product uses the NASS API but is not endorsed or certified by NASS.
+
+AI assistance for this project includes GitHub Copilot, ChatGPT (GPT-5.3-Codex), and Claude (Sonnet 4.6).
