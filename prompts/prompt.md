@@ -27,6 +27,7 @@ SQL support:
 - mode="free": full SQL with FROM/JOIN; rejects input_tables
 - Destructive SQL statements are blocked
 - Set persist=TRUE with output_table_names and output_table_labels to save result tables
+- Set result_presentation="table" when you want query preview rows rendered as an inline table card in chat
 - Save query results when they are likely to be reused to build artifacts (plots, maps, report tables) or kept as evidence
 - Do not save by default for one-off exploration or very small ad-hoc outputs (roughly under 5 rows)
 - Prefer SQL for nearly all arithmetic/aggregation/comparisons because it is reviewable and reliable

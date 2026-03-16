@@ -636,7 +636,8 @@ query_tables <- tool(
     output_table_labels = NULL,
     persist = FALSE,
     add_data_view = TRUE,
-    max_rows = 200
+    max_rows = 200,
+    result_presentation = "default"
   ) {
     run_query_tables(
       con = con,
@@ -647,7 +648,8 @@ query_tables <- tool(
       output_table_labels = output_table_labels,
       persist = isTRUE(persist),
       add_data_view = isTRUE(add_data_view),
-      max_rows = as.integer(max_rows)
+      max_rows = as.integer(max_rows),
+      result_presentation = result_presentation
     )
   },
   name = "query_tables",
@@ -659,6 +661,7 @@ query_tables <- tool(
     "(SQL must not contain FROM; it is appended after FROM each input table).",
     "Use mode='free' for full SQL with FROM/JOIN; free mode rejects input_tables.",
     "Destructive SQL statements are blocked.",
+    "Set result_presentation='table' to render preview rows as an inline table card.",
     "Persist results when they will be reused for artifacts/evidence; avoid persisting one-off exploration or tiny (<5 row) outputs."
   ),
   arguments = list(
@@ -695,6 +698,11 @@ query_tables <- tool(
     ),
     max_rows = type_number(
       "When persist=FALSE, maximum rows returned in result_rows preview (default 200).",
+      required = FALSE
+    ),
+    result_presentation = type_enum(
+      "How to present non-persist preview results in chat. Use 'table' for an inline table card, or 'default' for standard tool output.",
+      values = c("default", "table"),
       required = FALSE
     )
   ),

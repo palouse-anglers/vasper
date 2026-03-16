@@ -257,6 +257,288 @@ normalize_sql_mode <- function(mode, input_tables, sql) {
   mode
 }
 
+normalize_query_result_presentation <- function(result_presentation) {
+  if (is.null(result_presentation) || !length(result_presentation)) {
+    return("default")
+  }
+
+  value <- tolower(trimws(as.character(result_presentation[[1]])))
+  if (!value %in% c("default", "table")) {
+    stop(
+      "'result_presentation' must be either 'default' or 'table'.",
+      call. = FALSE
+    )
+  }
+
+  value
+}
+
+format_query_table_cell <- function(x) {
+  if (length(x) == 0 || is.null(x)) {
+    return("")
+  }
+
+  if (length(x) == 1 && is.na(x)) {
+    return("")
+  }
+
+  if (is.list(x)) {
+    return(jsonlite::toJSON(x, auto_unbox = TRUE, null = "null"))
+  }
+
+  as.character(x[[1]])
+}
+
+query_preview_rows_to_df <- function(result_rows, variable_names) {
+  variable_names <- as.character(variable_names)
+
+  if (length(variable_names) == 0) {
+    return(data.frame())
+  }
+
+  if (is.null(result_rows) || length(result_rows) == 0) {
+    empty_cols <- stats::setNames(
+      vector("list", length(variable_names)),
+      variable_names
+    )
+    return(as.data.frame(empty_cols, stringsAsFactors = FALSE))
+  }
+
+  row_records <- lapply(result_rows, function(row) {
+    out <- stats::setNames(
+      vector("list", length(variable_names)),
+      variable_names
+    )
+    row_list <- as.list(row)
+
+    row_names <- names(row_list)
+    if (!is.null(row_names) && any(nzchar(row_names))) {
+      matched_names <- intersect(variable_names, row_names)
+      for (col_name in matched_names) {
+        out[[col_name]] <- row_list[[col_name]]
+      }
+
+      return(out)
+    }
+
+    values <- unname(row_list)
+
+    n_values <- min(length(values), length(variable_names))
+    if (n_values > 0) {
+      out[seq_len(n_values)] <- values[seq_len(n_values)]
+    }
+
+    out
+  })
+
+  row_dfs <- lapply(
+    row_records,
+    function(record) {
+      as.data.frame(record, stringsAsFactors = FALSE, check.names = FALSE)
+    }
+  )
+
+  rows_df <- if (length(row_dfs) == 1) {
+    row_dfs[[1]]
+  } else {
+    Reduce(
+      function(lhs, rhs) {
+        rbind(lhs, rhs)
+      },
+      row_dfs
+    )
+  }
+
+  missing_cols <- setdiff(variable_names, names(rows_df))
+  if (length(missing_cols) > 0) {
+    for (col_name in missing_cols) {
+      rows_df[[col_name]] <- NA_character_
+    }
+  }
+
+  rows_df[, variable_names, drop = FALSE]
+}
+
+build_query_table_html <- function(df, title = NULL, footer = NULL) {
+  header <- shiny::tags$thead(
+    shiny::tags$tr(
+      lapply(names(df), function(column_name) {
+        shiny::tags$th(column_name)
+      })
+    )
+  )
+
+  body_rows <- if (nrow(df) == 0) {
+    list(
+      shiny::tags$tr(
+        shiny::tags$td(
+          colspan = max(length(names(df)), 1),
+          "No rows returned."
+        )
+      )
+    )
+  } else {
+    lapply(seq_len(nrow(df)), function(i) {
+      shiny::tags$tr(
+        lapply(df[i, , drop = FALSE], function(cell) {
+          shiny::tags$td(format_query_table_cell(cell))
+        })
+      )
+    })
+  }
+
+  table_tag <- shiny::tags$table(
+    class = "table table-sm table-striped table-bordered",
+    header,
+    shiny::tags$tbody(body_rows)
+  )
+
+  shiny::tags$div(
+    if (!is.null(title)) shiny::tags$h5(title),
+    table_tag,
+    if (!is.null(footer)) shiny::tags$small(class = "text-muted", footer)
+  )
+}
+
+build_query_tables_table_display <- function(result) {
+  if (is.null(result$result_rows) || is.null(result$variable_names)) {
+    return(NULL)
+  }
+
+  is_vectorized_preview <- is.list(result$variable_names) &&
+    !is.null(result$mode) &&
+    identical(result$mode, "vectorized")
+
+  if (!is_vectorized_preview) {
+    rows_df <- query_preview_rows_to_df(
+      result$result_rows,
+      result$variable_names
+    )
+    footer <- paste0(
+      "Preview rows: ",
+      result$rows_returned,
+      " of ",
+      result$rows_total,
+      if (isTRUE(result$result_truncated)) " (truncated)." else "."
+    )
+
+    return(build_query_table_html(
+      rows_df,
+      title = "Query Results",
+      footer = footer
+    ))
+  }
+
+  table_names <- result$table_label
+  if (is.null(table_names) || length(table_names) == 0) {
+    table_names <- result$table_name
+  }
+
+  table_blocks <- lapply(seq_along(result$result_rows), function(i) {
+    title <- if (!is.null(table_names) && length(table_names) >= i) {
+      as.character(table_names[[i]])
+    } else {
+      paste0("Result ", i)
+    }
+
+    rows_returned <- if (
+      !is.null(result$rows_returned) && length(result$rows_returned) >= i
+    ) {
+      result$rows_returned[[i]]
+    } else {
+      0L
+    }
+
+    rows_total <- if (
+      !is.null(result$rows_total) && length(result$rows_total) >= i
+    ) {
+      result$rows_total[[i]]
+    } else {
+      0L
+    }
+
+    truncated <- if (
+      !is.null(result$result_truncated) && length(result$result_truncated) >= i
+    ) {
+      isTRUE(result$result_truncated[[i]])
+    } else {
+      FALSE
+    }
+
+    footer <- paste0(
+      "Preview rows: ",
+      rows_returned,
+      " of ",
+      rows_total,
+      if (truncated) " (truncated)." else "."
+    )
+
+    rows_df <- query_preview_rows_to_df(
+      result_rows = result$result_rows[[i]],
+      variable_names = result$variable_names[[i]]
+    )
+
+    build_query_table_html(rows_df, title = title, footer = footer)
+  })
+
+  do.call(shiny::tagList, table_blocks)
+}
+
+get_query_tables_result_presenters <- function() {
+  list(
+    default = function(result) NULL,
+    table = function(result) {
+      html <- build_query_tables_table_display(result)
+      if (is.null(html)) {
+        return(NULL)
+      }
+
+      list(
+        html = html,
+        show_request = FALSE,
+        open = TRUE,
+        title = "Query Result Preview"
+      )
+    }
+  )
+}
+
+build_query_tables_display <- function(result, result_presentation) {
+  presenters <- get_query_tables_result_presenters()
+  presenter <- presenters[[result_presentation]]
+
+  if (is.null(presenter)) {
+    stop(
+      paste0(
+        "No presenter registered for result_presentation='",
+        result_presentation,
+        "'."
+      ),
+      call. = FALSE
+    )
+  }
+
+  presenter(result)
+}
+
+finalize_query_tables_result <- function(result, result_presentation) {
+  display <- build_query_tables_display(
+    result = result,
+    result_presentation = result_presentation
+  )
+
+  if (is.null(display)) {
+    return(result)
+  }
+
+  content_tool_result <- get("ContentToolResult", envir = asNamespace("ellmer"))
+
+  content_tool_result(
+    value = result,
+    extra = list(display = display)
+  )
+}
+
 normalize_result_rows <- function(df, max_rows = 200L) {
   if (nrow(df) == 0) {
     return(list(
@@ -301,7 +583,8 @@ run_query_tables <- function(
   output_table_labels = NULL,
   persist = FALSE,
   add_data_view = TRUE,
-  max_rows = 200L
+  max_rows = 200L,
+  result_presentation = "default"
 ) {
   if (is.null(sql) || length(sql) == 0) {
     sql <- ""
@@ -335,6 +618,9 @@ run_query_tables <- function(
   )
 
   mode <- normalize_sql_mode(mode, input_tables, sql)
+  result_presentation <- normalize_query_result_presentation(
+    result_presentation
+  )
   persist <- isTRUE(persist)
   add_data_view <- isTRUE(add_data_view)
 
@@ -492,13 +778,16 @@ run_query_tables <- function(
         }
       )
 
-      return(list(
-        mode = mode,
-        table_name = output_table_names,
-        table_label = output_table_labels,
-        add_data_view = add_data_view,
-        variable_names = variable_names,
-        dimensions = dimensions
+      return(finalize_query_tables_result(
+        list(
+          mode = mode,
+          table_name = output_table_names,
+          table_label = output_table_labels,
+          add_data_view = add_data_view,
+          variable_names = variable_names,
+          dimensions = dimensions
+        ),
+        result_presentation
       ))
     }
 
@@ -516,21 +805,27 @@ run_query_tables <- function(
 
     previews <- purrr::map(results, normalize_result_rows, max_rows = max_rows)
 
-    list(
-      mode = mode,
-      input_tables = input_tables,
-      table_name = output_table_names,
-      table_label = output_table_labels,
-      add_data_view = FALSE,
-      variable_names = variable_names,
-      dimensions = dimensions,
-      result_rows = purrr::map(previews, "result_rows"),
-      rows_returned = as.integer(unlist(purrr::map(previews, "rows_returned"))),
-      rows_total = as.integer(unlist(purrr::map(previews, "rows_total"))),
-      result_truncated = as.logical(unlist(purrr::map(
-        previews,
-        "result_truncated"
-      )))
+    finalize_query_tables_result(
+      list(
+        mode = mode,
+        input_tables = input_tables,
+        table_name = output_table_names,
+        table_label = output_table_labels,
+        add_data_view = FALSE,
+        variable_names = variable_names,
+        dimensions = dimensions,
+        result_rows = purrr::map(previews, "result_rows"),
+        rows_returned = as.integer(unlist(purrr::map(
+          previews,
+          "rows_returned"
+        ))),
+        rows_total = as.integer(unlist(purrr::map(previews, "rows_total"))),
+        result_truncated = as.logical(unlist(purrr::map(
+          previews,
+          "result_truncated"
+        )))
+      ),
+      result_presentation
     )
   } else {
     assert_free_sql_tables_exist(con, sql)
@@ -600,16 +895,19 @@ run_query_tables <- function(
         is_active = TRUE
       )
 
-      return(list(
-        mode = mode,
-        table_name = output_table_name,
-        table_label = output_table_label,
-        add_data_view = add_data_view,
-        variable_names = DBI::dbListFields(con, output_table_name),
-        dimensions = list(
-          nrow = as.integer(row_count),
-          ncol = as.integer(column_count)
-        )
+      return(finalize_query_tables_result(
+        list(
+          mode = mode,
+          table_name = output_table_name,
+          table_label = output_table_label,
+          add_data_view = add_data_view,
+          variable_names = DBI::dbListFields(con, output_table_name),
+          dimensions = list(
+            nrow = as.integer(row_count),
+            ncol = as.integer(column_count)
+          )
+        ),
+        result_presentation
       ))
     }
 
@@ -617,18 +915,21 @@ run_query_tables <- function(
 
     preview <- normalize_result_rows(result, max_rows = max_rows)
 
-    list(
-      mode = mode,
-      add_data_view = FALSE,
-      variable_names = names(result),
-      dimensions = list(
-        nrow = as.integer(nrow(result)),
-        ncol = as.integer(ncol(result))
+    finalize_query_tables_result(
+      list(
+        mode = mode,
+        add_data_view = FALSE,
+        variable_names = names(result),
+        dimensions = list(
+          nrow = as.integer(nrow(result)),
+          ncol = as.integer(ncol(result))
+        ),
+        result_rows = preview$result_rows,
+        rows_returned = preview$rows_returned,
+        rows_total = preview$rows_total,
+        result_truncated = preview$result_truncated
       ),
-      result_rows = preview$result_rows,
-      rows_returned = preview$rows_returned,
-      rows_total = preview$rows_total,
-      result_truncated = preview$result_truncated
+      result_presentation
     )
   }
 }

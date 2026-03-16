@@ -13,6 +13,35 @@ source(file.path("R", "chat_helpers.R"))
 source(file.path("R", "query_tables.R"))
 
 describe("run_query_tables mode validation", {
+  test_that("query_preview_rows_to_df preserves non-syntactic column names", {
+    rows <- list(
+      list(
+        "Date" = "2026-03-15",
+        "High (°F)" = 45,
+        "Low (°F)" = 32,
+        "Precip (in)" = 0,
+        "Max Wind (mph)" = 8
+      )
+    )
+
+    reconstructed <- query_preview_rows_to_df(
+      result_rows = rows,
+      variable_names = c(
+        "Date",
+        "High (°F)",
+        "Low (°F)",
+        "Precip (in)",
+        "Max Wind (mph)"
+      )
+    )
+
+    expect_equal(reconstructed[["Date"]][[1]], "2026-03-15")
+    expect_equal(reconstructed[["High (°F)"]][[1]], 45)
+    expect_equal(reconstructed[["Low (°F)"]][[1]], 32)
+    expect_equal(reconstructed[["Precip (in)"]][[1]], 0)
+    expect_equal(reconstructed[["Max Wind (mph)"]][[1]], 8)
+  })
+
   test_that("sql-only input defaults to free mode", {
     con <- DBI::dbConnect(duckdb::duckdb(), ":memory:")
     ensure_table_metadata(con)
@@ -181,6 +210,24 @@ describe("run_query_tables mode validation", {
 
     DBI::dbDisconnect(con, shutdown = TRUE)
   })
+
+  test_that("invalid result_presentation is rejected", {
+    con <- DBI::dbConnect(duckdb::duckdb(), ":memory:")
+    ensure_table_metadata(con)
+
+    DBI::dbWriteTable(con, "a", tibble(x = 1:3), overwrite = TRUE)
+
+    expect_error(
+      run_query_tables(
+        con = con,
+        sql = "SELECT x FROM a",
+        result_presentation = "plot"
+      ),
+      "result_presentation"
+    )
+
+    DBI::dbDisconnect(con, shutdown = TRUE)
+  })
 })
 
 describe("run_query_tables execution", {
@@ -297,6 +344,63 @@ describe("run_query_tables execution", {
       ),
       "Tip: For UNION queries"
     )
+
+    DBI::dbDisconnect(con, shutdown = TRUE)
+  })
+
+  test_that("free mode supports table presentation for preview rows", {
+    con <- DBI::dbConnect(duckdb::duckdb(), ":memory:")
+    ensure_table_metadata(con)
+
+    DBI::dbWriteTable(
+      con,
+      "weather_table_view",
+      tibble(day = 1:3, rain = c(0, 0.2, 0.1)),
+      overwrite = TRUE
+    )
+
+    result <- run_query_tables(
+      con = con,
+      mode = "free",
+      sql = "SELECT day, rain FROM weather_table_view ORDER BY day",
+      persist = FALSE,
+      result_presentation = "table"
+    )
+
+    expect_true(inherits(result, "ellmer::ContentToolResult"))
+    expect_true(is.list(result@extra$display))
+    expect_true("html" %in% names(result@extra$display))
+
+    payload <- unwrap_tool_result(result)
+    expect_equal(payload$dimensions$nrow, 3)
+    expect_equal(payload$rows_returned, 3)
+
+    DBI::dbDisconnect(con, shutdown = TRUE)
+  })
+
+  test_that("persisted results ignore table presentation fallback", {
+    con <- DBI::dbConnect(duckdb::duckdb(), ":memory:")
+    ensure_table_metadata(con)
+
+    DBI::dbWriteTable(
+      con,
+      "soil_data",
+      tibble(year = c(2020L, 2021L), value = c(10, 20)),
+      overwrite = TRUE
+    )
+
+    result <- run_query_tables(
+      con = con,
+      mode = "free",
+      sql = "SELECT year, value FROM soil_data",
+      output_table_names = c("soil_subset_view_test"),
+      output_table_labels = c("Soil Subset View Test"),
+      persist = TRUE,
+      result_presentation = "table"
+    )
+
+    expect_false(inherits(result, "ellmer::ContentToolResult"))
+    expect_equal(result$table_name, "soil_subset_view_test")
 
     DBI::dbDisconnect(con, shutdown = TRUE)
   })
