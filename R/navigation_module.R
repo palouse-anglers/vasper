@@ -279,8 +279,16 @@ navigation_server <- function(
   chat_id = "main_chat",
   on_clear_chat = NULL
 ) {
+  default_non_chat_page <- if ("data" %in% names(app_pages)) {
+    "data"
+  } else if (length(app_pages) > 0) {
+    names(app_pages)[[1]]
+  } else {
+    "reports"
+  }
+
   active_page <- reactiveVal(NULL) # NULL = chat visible
-  last_page <- reactiveVal("reports") # remember last page for toggle
+  last_page <- reactiveVal(default_non_chat_page) # remember last page for toggle
   footer_action_enabled <- reactiveValues(
     clear_chat = TRUE,
     toggle_view = TRUE,
