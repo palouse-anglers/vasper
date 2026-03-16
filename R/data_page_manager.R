@@ -27,6 +27,10 @@ data_page_manager_ui <- function(id) {
         class = "btn btn-sm btn-outline-primary"
       )
     ),
+    p(
+      class = "text-muted small mb-2",
+      "Data views are read-only previews of tables in this session."
+    ),
     uiOutput(ns("modules_ui"))
   )
 }
@@ -394,9 +398,9 @@ data_page_manager_server <- function(
       specs <- module_specs()
 
       if (length(specs) == 0) {
-        return(div(
-          class = "text-muted",
-          "No data views yet. Use 'Manage views' to create one or more."
+        return(p(
+          class = "text-muted small mb-2",
+          "No data views yet. Use 'Manage views' to add one or more read-only table previews."
         ))
       }
 
