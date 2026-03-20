@@ -25,29 +25,34 @@ library(jsonlite)
 library(plotly)
 library(leaflet)
 library(DT)
+library(thematic)
 
 # Reports ----
 library(quarto)
 library(zip)
 
-# Async (optional for Phase 2+) ----
-# library(promises)
-# library(future)
-
 # Load all source code
-lapply(
-  list.files(path = "R", pattern = "*.R", full.names = TRUE, all.files = TRUE),
-  source
-)
+# Files in `first` are sourced before the rest.
+.r_files <- list.files(path = "R", pattern = "\\.R$", full.names = TRUE)
+.r_first <- file.path("R", c("brand_colors.R", "app_config.R"))
+lapply(c(.r_first, setdiff(.r_files, .r_first)), source)
+rm(.r_files, .r_first)
+
+# Suppress bslib dev-mode contrast warnings that originate from the "shiny"
+# preset's built-in $blue (#2077d8) being processed through Bootstrap's color
+# utility machinery. This is a preset-level quirk, not a brand color issue.
+options(bslib.color_contrast_warnings = FALSE)
 
 # Theme ----
 app_theme <- bs_theme(
   version = 5,
   preset = "shiny",
-  primary = "#2E7D32", # Agricultural green
-  secondary = "#FFA726", # Harvest orange
+  brand = TRUE,
   font_scale = 0.9
 )
+
+# Auto-apply brand colors to all ggplot2/base/lattice plots in the session
+thematic_shiny(font = "auto")
 
 # Initialize DuckDB In-Memory Database ----
 con <- dbConnect(duckdb::duckdb(), ":memory:")
@@ -621,7 +626,9 @@ get_yield_historical_nass <- tool(
     icon = tool_icon_image(
       "icons/usda-nass-logo.png",
       "USDA NASS",
-      bg = "#09266A"
+      # Intentional lockup treatment: USDA NASS mark requires this navy
+      # backdrop for legibility/brand consistency. Do not remove.
+      bg = BRAND_COLORS$usda_nass_navy
     )
   )
 )

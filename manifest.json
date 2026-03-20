@@ -4532,6 +4532,43 @@
         "Archs": "x64"
       }
     },
+    "thematic": {
+      "Source": "CRAN",
+      "Repository": "https://cran.rstudio.com",
+      "description": {
+        "Package": "thematic",
+        "Title": "Unified and Automatic 'Theming' of 'ggplot2', 'lattice', and\n'base' R Graphics",
+        "Version": "0.1.8",
+        "Authors@R": "c(\n    person(\"Carson\", \"Sievert\", , \"carson@posit.co\", role = c(\"aut\", \"cre\"),\n           comment = c(ORCID = \"0000-0002-4958-2844\")),\n    person(\"Barret\", \"Schloerke\", , \"barret@posit.co\", role = \"aut\",\n           comment = c(ORCID = \"0000-0001-9986-114X\")),\n    person(\"Joe\", \"Cheng\", , \"joe@posit.co\", role = \"aut\"),\n    person(\"Posit Software, PBC\", role = c(\"cph\", \"fnd\"))\n  )",
+        "Description": "Theme 'ggplot2', 'lattice', and 'base' graphics based on a\n    few choices, including foreground color, background color, accent\n    color, and font family. Fonts that aren't available on the system, but\n    are available via download on 'Google Fonts', can be automatically\n    downloaded, cached, and registered for use with the 'showtext' and\n    'ragg' packages.",
+        "License": "MIT + file LICENSE",
+        "URL": "https://rstudio.github.io/thematic/,\nhttps://github.com/rstudio/thematic",
+        "BugReports": "https://github.com/rstudio/thematic/issues",
+        "Depends": "R (>= 3.0.0)",
+        "Imports": "farver, ggplot2 (>= 3.5.2), graphics, grDevices, grid,\nrappdirs, rlang, rstudioapi (>= 0.8), scales, utils",
+        "Suggests": "bslib, Cairo, curl, gganimate, ggiraph, htmltools, jsonlite,\nknitr, lattice, ragg, rmarkdown, shiny (>= 1.5.0), showtext,\nstats, svglite, sysfonts, systemfonts, testthat, vdiffr (>=\n1.0.0), withr",
+        "Config/Needs/check": "shinytest2, callr, sf, ggthemes, patchwork,\ngridExtra, tinytex, devtools, rversions",
+        "Config/Needs/routine": "ggrepel, r-lib/evaluate",
+        "Config/Needs/website": "GGally, RColorBrewer, patchwork,\napreshill/quillt, r-lib/evaluate",
+        "Config/testthat/edition": "3",
+        "Encoding": "UTF-8",
+        "RoxygenNote": "7.3.3",
+        "Collate": "'auto.R' 'base.R' 'cache.R' 'gfonts.R' 'ggplot.R' 'globals.R'\n'hooks.R' 'knitr.R' 'lattice.R' 'onLoad.R' 'thematic-package.R'\n'thematic-save-plot.R' 'thematic.R' 'utils.R'",
+        "NeedsCompilation": "no",
+        "Packaged": "2025-09-29 22:13:21 UTC; cpsievert",
+        "Author": "Carson Sievert [aut, cre] (ORCID:\n    <https://orcid.org/0000-0002-4958-2844>),\n  Barret Schloerke [aut] (ORCID: <https://orcid.org/0000-0001-9986-114X>),\n  Joe Cheng [aut],\n  Posit Software, PBC [cph, fnd]",
+        "Maintainer": "Carson Sievert <carson@posit.co>",
+        "Repository": "CRAN",
+        "Date/Publication": "2025-09-29 23:40:03 UTC",
+        "Built": "R 4.4.3; ; 2026-03-18 18:44:55 UTC; windows",
+        "RemoteType": "standard",
+        "RemotePkgRef": "thematic",
+        "RemoteRef": "thematic",
+        "RemoteRepos": "https://cran.rstudio.com/",
+        "RemotePkgPlatform": "i386+x86_64-w64-mingw32",
+        "RemoteSha": "0.1.8"
+      }
+    },
     "tibble": {
       "Source": "CRAN",
       "Repository": "https://cran.rstudio.com",
@@ -5232,13 +5269,19 @@
   },
   "files": {
     ".Renviron": {
-      "checksum": "68d3717bd4841ecdb4891422b1fb1066"
+      "checksum": "2113926b4cfbc8857b5b5473ef36f80b"
     },
     ".Renviron.template": {
-      "checksum": "6e05f8c0d483864ba21e8c032b01d004"
+      "checksum": "6847850b5d953bc3afd82492f87b42ec"
+    },
+    "_brand.yml": {
+      "checksum": "71db63bbb47510a2f2cdd10290ea7bf7"
     },
     "app.R": {
-      "checksum": "711ced8b6a2cd207efcf0accda238289"
+      "checksum": "2084bd8114a6d8c3ff25b39bae6e6855"
+    },
+    "data-raw/download_app_icons.R": {
+      "checksum": "6dc2392756a2768f8202de0e0b821144"
     },
     "data-raw/reformat_soil_data.R": {
       "checksum": "b14ac6e3b4f37328bb5898506f3f594f"
@@ -5250,22 +5293,37 @@
       "checksum": "3aa158757681d263cdf87c4f820e8e5d"
     },
     "global.R": {
-      "checksum": "0c05a9adfc7015b74125b489b603423f"
+      "checksum": "c73072d8b9acb090ed028502884ab75d"
+    },
+    "prompts/debugger.md": {
+      "checksum": "b15fccd94cd19dcb157d16c43aa6ea38"
+    },
+    "prompts/prompt.md": {
+      "checksum": "35bf055d756287fd4d5c2bfbf57fcac5"
     },
     "R/app_config.R": {
-      "checksum": "72d5a9529a0ec4000420f26c1fe2aacd"
+      "checksum": "0d572c68ed87e17d0bf3daa1679a3e24"
+    },
+    "R/chat_helpers.R": {
+      "checksum": "8e4d776397936e2eaa52de9ff5c934a6"
     },
     "R/data_page_manager.R": {
-      "checksum": "73a02515a43208dcac1067d66246051e"
+      "checksum": "848d9115a32e6204a83098b65089da73"
     },
     "R/data_page_module.R": {
-      "checksum": "5826cc98dc8bfc672e115d3f511805e7"
+      "checksum": "6f7ceca8bdf663adca711c225877016e"
     },
     "R/davis_api.R": {
       "checksum": "3ca645aa067444dc041c2820ad56eb8a"
     },
     "R/navigation_module.R": {
-      "checksum": "3ddc362b4a52a0942efcf5cb3ad858b8"
+      "checksum": "3ee1740b74f40a3989f727136692fa5c"
+    },
+    "R/prompt_profiles.R": {
+      "checksum": "30aff51b60aaeafb70ba13441319e037"
+    },
+    "R/query_tables.R": {
+      "checksum": "b55d42ec38a4b1e9ea704225f849b243"
     },
     "R/render_report.R": {
       "checksum": "6cd50b8ce85a7ba06e458de0cf6754a4"
@@ -5277,13 +5335,16 @@
       "checksum": "d8607e8301ad57f7e0ddc90ce675420d"
     },
     "R/table_metadata.R": {
-      "checksum": "5a185f55b1d97489100a45ef7fea2dcd"
+      "checksum": "c2547afb2eca1873ec9df3ccf0a9d00c"
+    },
+    "R/usda_nass_api.R": {
+      "checksum": "f0ffa66f0b21d761527100189e391979"
     },
     "R/weather_api.R": {
-      "checksum": "b759ad4fcb00edf1b477913aad224a98"
+      "checksum": "8ec9b315561696b138b381dcaaebdf67"
     },
     "README.md": {
-      "checksum": "83bc8b626496b5990fd0492689aa7d9f"
+      "checksum": "8e36d0b649b9bfa6d12c110fa29515af"
     },
     "reports/01_producer-report.qmd": {
       "checksum": "ea51f20ddb3ba6027904b2d0f39110d9"
@@ -5330,17 +5391,38 @@
     "reports/resources/word-template.docx": {
       "checksum": "eaf4496f90d6b19a411effa19696f622"
     },
+    "tests/test_chat_helpers.R": {
+      "checksum": "39bef48ab33be385fb6547d47688485e"
+    },
     "tests/test_davis_api.R": {
-      "checksum": "9a727cceef84d707967bf6919622fc6e"
+      "checksum": "e2e9925106d018e40474982611788b63"
+    },
+    "tests/test_query_tables.R": {
+      "checksum": "13f0d4ef490a12680baef5e33a6708c6"
+    },
+    "tests/test_usda_nass_api.R": {
+      "checksum": "4cf949507cdf1cc71113e25e158ca1bd"
     },
     "tests/test_weather_api.R": {
-      "checksum": "09d36c55599d3bb59c1d6c101821fccf"
+      "checksum": "66093780c43938ffb02af06f904f54f2"
     },
     "www/css/app.css": {
-      "checksum": "e23552abe0c888a485e0c1dcf21a495e"
+      "checksum": "ad41238a3cc671ce44457ff04fbf853b"
+    },
+    "www/icons/open-meteo-favicon.ico": {
+      "checksum": "ff2b686e7efd3ce80ce58ac85f75140b"
+    },
+    "www/icons/soils-logo.png": {
+      "checksum": "32cae196c84f6ec17dcc66e97218d042"
+    },
+    "www/icons/usda-nass-logo.png": {
+      "checksum": "d87110421894e79a455cee1cabdf4fb9"
+    },
+    "www/icons/weatherlink-logo.png": {
+      "checksum": "4020b08253da77ce99a2382c82884d1a"
     },
     "www/js/navigation.js": {
-      "checksum": "013eaf4fc0ad19c6fd262e241fb38e44"
+      "checksum": "34d7a8504f03334614fce5a1fe5c5b93"
     },
     "www/js/scroll.js": {
       "checksum": "732770496841acb4df79db17b758d6bd"

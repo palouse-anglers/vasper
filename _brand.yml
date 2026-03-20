@@ -1,0 +1,50 @@
+meta:
+  name: Vasper
+  link: https://github.com/palouse-anglers/vasper
+
+logo:
+  small: www/icons/vasper-logo.svg
+  medium: www/icons/vasper-logo.svg
+  large: www/icons/vasper-logo.svg
+
+color:
+  palette:
+    vasper-green: "#2E7D32"
+    vasper-green-light: "#e8f5e9"
+    harvest-orange: "#FFA726"
+    harvest-orange-dark: "#E65100"
+    harvest-orange-light: "#fff3e0"
+    weatherlink-navy: "#09266A"
+    danger-red: "#C62828"
+    danger-red-light: "#ffebee"
+    neutral-gray: "#6C757D"
+    accent-teal: "#00796B"
+    light-gray: "#F8F9FA"
+    neutral-bg: "#FFFFFF"
+    neutral-fg: "#1F2933"
+  foreground: neutral-fg
+  background: neutral-bg
+  primary: vasper-green
+  secondary: neutral-gray
+  success: vasper-green
+  warning: harvest-orange
+  danger: danger-red
+  accent: accent-teal
+  light: light-gray
+  dark: neutral-fg
+
+typography:
+  base: system-ui
+  headings:
+    family: system-ui
+    weight: 600
+    color: neutral-fg
+  monospace: '"SFMono-Regular", Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace'
+  link:
+    color: primary
+    decoration: underline
+
+defaults:
+  bootstrap:
+    enable-rounded: true
+    border-radius: "0.375rem"

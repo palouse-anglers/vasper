@@ -23,6 +23,31 @@ ui <- page_fillable(
 
   tags$head(
     tags$link(rel = "stylesheet", href = "css/app.css"),
+    tags$style(HTML(sprintf(
+      "
+      .shiny-notification,
+      .shiny-notification-message {
+        border-left: 4px solid %s !important;
+        background-color: %s !important;
+        color: %s !important;
+      }
+      .shiny-notification-warning {
+        border-left-color: %s !important;
+        background-color: %s !important;
+      }
+      .shiny-notification-error {
+        border-left-color: %s !important;
+        background-color: %s !important;
+      }
+    ",
+      BRAND_COLORS$primary,
+      BRAND_COLORS$primary_light,
+      BRAND_COLORS$foreground,
+      BRAND_COLORS$warning,
+      BRAND_COLORS$warning_light,
+      BRAND_COLORS$danger,
+      BRAND_COLORS$danger_light
+    ))),
     tags$script(src = "js/scroll.js"),
     tags$script(src = "js/navigation.js")
   ),
