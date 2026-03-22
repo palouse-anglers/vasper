@@ -25,7 +25,21 @@ Use query_tables for SQL verification:
 - mode="free" for full SQL with FROM/JOIN (rejects input_tables)
 - Destructive SQL statements are blocked
 - Use DuckDB SQL syntax when composing query_tables SQL
+- Persisted query outputs must use NEW table names; existing tables cannot be replaced
 API fetch tools return metadata only; use query_tables to inspect values.
+
+Naming and metadata checks:
+- Weather tables use deterministic names: weather__<tool>__<scope>
+- NASS tables use deterministic names: usda_yields_<role>__<scope>
+- Weather scope is based on location/time window (not full variable list)
+- For SQL verification, always use exact table_name values returned by tool results
+- If names are uncertain, call get_data_table_metadata before query_tables
+
+Visualization checks:
+- Preferred flow: list_plot_schemas -> read_plot_schemas -> create_plot_from_schema
+- create_plot_from_schema requires: schema_name, table_name, column_map, description, artifact_name
+- create_plot_code requires: plot_code, table_names, description, inspiration_schemas, artifact_name
+- Every visualization call must include description
 
 For recent condition checks, prefer this sequence:
 - get_weather_stations_davis
