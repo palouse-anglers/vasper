@@ -1864,6 +1864,36 @@
         "RemoteSha": "0.9.6"
       }
     },
+    "ggridges": {
+      "Source": "CRAN",
+      "Repository": "https://cran.rstudio.com",
+      "description": {
+        "Package": "ggridges",
+        "Type": "Package",
+        "Title": "Ridgeline Plots in 'ggplot2'",
+        "Version": "0.5.6",
+        "Authors@R": "\n    person(\n      given = \"Claus O.\",\n      family = \"Wilke\",\n      role = c(\"aut\", \"cre\"),\n      email = \"wilke@austin.utexas.edu\",\n      comment = c(ORCID = \"0000-0002-7470-9261\")\n    )",
+        "Description": "Ridgeline plots provide a convenient way of visualizing changes in distributions over time or space. This package enables the creation of such plots in 'ggplot2'.",
+        "URL": "https://wilkelab.org/ggridges/",
+        "BugReports": "https://github.com/wilkelab/ggridges/issues",
+        "Depends": "R (>= 3.2)",
+        "Imports": "ggplot2 (>= 3.4.0), grid (>= 3.0.0), scales (>= 0.4.1), withr\n(>= 2.1.1)",
+        "License": "GPL-2 | file LICENSE",
+        "LazyData": "true",
+        "Suggests": "covr, dplyr, patchwork, ggplot2movies, forcats, knitr,\nrmarkdown, testthat, vdiffr",
+        "VignetteBuilder": "knitr",
+        "Collate": "'data.R' 'ggridges.R' 'geoms.R' 'geomsv.R' 'geoms-gradient.R'\n'geom-density-line.R' 'position.R' 'scale-cyclical.R'\n'scale-point.R' 'scale-vline.R' 'stats.R' 'theme.R'\n'utils_ggplot2.R' 'utils.R'",
+        "RoxygenNote": "7.2.3",
+        "Encoding": "UTF-8",
+        "NeedsCompilation": "no",
+        "Packaged": "2024-01-23 01:28:20 UTC; clauswilke",
+        "Author": "Claus O. Wilke [aut, cre] (<https://orcid.org/0000-0002-7470-9261>)",
+        "Maintainer": "Claus O. Wilke <wilke@austin.utexas.edu>",
+        "Repository": "CRAN",
+        "Date/Publication": "2024-01-23 05:40:10 UTC",
+        "Built": "R 4.4.3; ; 2025-06-27 03:01:58 UTC; windows"
+      }
+    },
     "ggtext": {
       "Source": "CRAN",
       "Repository": "https://cran.rstudio.com",
@@ -3135,6 +3165,40 @@
         "Repository": "CRAN",
         "Date/Publication": "2025-08-29 13:30:07 UTC",
         "Built": "R 4.4.3; ; 2025-10-13 09:29:41 UTC; windows"
+      }
+    },
+    "patchwork": {
+      "Source": "CRAN",
+      "Repository": "https://cran.rstudio.com",
+      "description": {
+        "Package": "patchwork",
+        "Type": "Package",
+        "Title": "The Composer of Plots",
+        "Version": "1.3.2",
+        "Authors@R": "\n    person(given = \"Thomas Lin\",\n           family = \"Pedersen\",\n           role = c(\"cre\", \"aut\"),\n           email = \"thomasp85@gmail.com\",\n           comment = c(ORCID = \"0000-0002-5147-4711\"))",
+        "Maintainer": "Thomas Lin Pedersen <thomasp85@gmail.com>",
+        "Description": "The 'ggplot2' package provides a strong API for sequentially \n    building up a plot, but does not concern itself with composition of multiple\n    plots. 'patchwork' is a package that expands the API to allow for \n    arbitrarily complex composition of plots by, among others, providing \n    mathematical operators for combining multiple plots. Other packages that try \n    to address this need (but with a different approach) are 'gridExtra' and \n    'cowplot'.",
+        "License": "MIT + file LICENSE",
+        "Encoding": "UTF-8",
+        "Imports": "ggplot2 (>= 3.0.0), gtable (>= 0.3.6), grid, stats, grDevices,\nutils, graphics, rlang (>= 1.0.0), cli, farver",
+        "RoxygenNote": "7.3.2",
+        "URL": "https://patchwork.data-imaginist.com,\nhttps://github.com/thomasp85/patchwork",
+        "BugReports": "https://github.com/thomasp85/patchwork/issues",
+        "Suggests": "knitr, rmarkdown, gridGraphics, gridExtra, ragg, testthat (>=\n2.1.0), vdiffr, covr, png, gt (>= 0.11.0)",
+        "VignetteBuilder": "knitr",
+        "Config/Needs/website": "gifski",
+        "NeedsCompilation": "no",
+        "Packaged": "2025-08-25 08:14:43 UTC; thomas",
+        "Author": "Thomas Lin Pedersen [cre, aut] (ORCID:\n    <https://orcid.org/0000-0002-5147-4711>)",
+        "Repository": "CRAN",
+        "Date/Publication": "2025-08-25 10:00:02 UTC",
+        "Built": "R 4.4.3; ; 2026-03-18 19:02:37 UTC; windows",
+        "RemoteType": "standard",
+        "RemotePkgRef": "patchwork",
+        "RemoteRef": "patchwork",
+        "RemoteRepos": "https://cran.rstudio.com/",
+        "RemotePkgPlatform": "i386+x86_64-w64-mingw32",
+        "RemoteSha": "1.3.2"
       }
     },
     "pillar": {
@@ -5269,16 +5333,19 @@
   },
   "files": {
     ".Renviron": {
-      "checksum": "2113926b4cfbc8857b5b5473ef36f80b"
+      "checksum": "51a7dfec639b8088c741a2cde7ce17b3"
     },
     ".Renviron.template": {
-      "checksum": "6847850b5d953bc3afd82492f87b42ec"
+      "checksum": "3fddbf5ef95f9feacc80d23d8ec1c8db"
     },
     "_brand.yml": {
-      "checksum": "71db63bbb47510a2f2cdd10290ea7bf7"
+      "checksum": "51558493f764793b8479db63fbb1463d"
     },
     "app.R": {
-      "checksum": "2084bd8114a6d8c3ff25b39bae6e6855"
+      "checksum": "e59b1f6d7c94d0f7269a5c3d9349cdbb"
+    },
+    "data-raw/create_logo.R": {
+      "checksum": "715d7420016d0e8555cd09860aab719c"
     },
     "data-raw/download_app_icons.R": {
       "checksum": "6dc2392756a2768f8202de0e0b821144"
@@ -5293,37 +5360,46 @@
       "checksum": "3aa158757681d263cdf87c4f820e8e5d"
     },
     "global.R": {
-      "checksum": "c73072d8b9acb090ed028502884ab75d"
+      "checksum": "6073ecbdc38b2fa91a47873f409d517a"
     },
     "prompts/debugger.md": {
-      "checksum": "b15fccd94cd19dcb157d16c43aa6ea38"
+      "checksum": "a1a5d6cbcc1f3ea05dba73ee862533e0"
     },
     "prompts/prompt.md": {
-      "checksum": "35bf055d756287fd4d5c2bfbf57fcac5"
+      "checksum": "4ab093ca1cba1500fa8cd5218a66f50a"
     },
     "R/app_config.R": {
-      "checksum": "0d572c68ed87e17d0bf3daa1679a3e24"
+      "checksum": "7aadf9f524837ade21dd08fa23748729"
+    },
+    "R/brand_colors.R": {
+      "checksum": "064e42bcf9b6ff1873d06a0c2a3873ca"
     },
     "R/chat_helpers.R": {
-      "checksum": "8e4d776397936e2eaa52de9ff5c934a6"
+      "checksum": "0b658cf4f77d307528497e357aabffda"
     },
     "R/data_page_manager.R": {
-      "checksum": "848d9115a32e6204a83098b65089da73"
+      "checksum": "b7bfc74aeb5cdca78f1102d53cfb9e1c"
     },
     "R/data_page_module.R": {
-      "checksum": "6f7ceca8bdf663adca711c225877016e"
+      "checksum": "1fb552c9008762822c00bc4410d33185"
     },
     "R/davis_api.R": {
       "checksum": "3ca645aa067444dc041c2820ad56eb8a"
     },
+    "R/map_helpers.R": {
+      "checksum": "5ffbade335891bcd03de69c0391dada4"
+    },
     "R/navigation_module.R": {
       "checksum": "3ee1740b74f40a3989f727136692fa5c"
+    },
+    "R/plot_schemas.R": {
+      "checksum": "29ff9d14e345b63d532d00075e6c30d2"
     },
     "R/prompt_profiles.R": {
       "checksum": "30aff51b60aaeafb70ba13441319e037"
     },
     "R/query_tables.R": {
-      "checksum": "b55d42ec38a4b1e9ea704225f849b243"
+      "checksum": "a7a97838852e7fd7f31e0a0960be4c47"
     },
     "R/render_report.R": {
       "checksum": "6cd50b8ce85a7ba06e458de0cf6754a4"
@@ -5338,10 +5414,16 @@
       "checksum": "c2547afb2eca1873ec9df3ccf0a9d00c"
     },
     "R/usda_nass_api.R": {
-      "checksum": "f0ffa66f0b21d761527100189e391979"
+      "checksum": "903f8c757c74c119a44d276adc44fa6c"
+    },
+    "R/visual_artifacts_module.R": {
+      "checksum": "4daba24503506305cb397b757983df92"
+    },
+    "R/visualization_tools.R": {
+      "checksum": "dbd3bb3438fcbcc05a5fdf3508146b26"
     },
     "R/weather_api.R": {
-      "checksum": "8ec9b315561696b138b381dcaaebdf67"
+      "checksum": "7a7be2eb72968d2f6f6c7a31e8bfcda0"
     },
     "README.md": {
       "checksum": "8e36d0b649b9bfa6d12c110fa29515af"
@@ -5398,16 +5480,19 @@
       "checksum": "e2e9925106d018e40474982611788b63"
     },
     "tests/test_query_tables.R": {
-      "checksum": "13f0d4ef490a12680baef5e33a6708c6"
+      "checksum": "6f0167ca7079706346764968a4d3b53e"
     },
     "tests/test_usda_nass_api.R": {
-      "checksum": "4cf949507cdf1cc71113e25e158ca1bd"
+      "checksum": "9d56ab8eff846a4fcde17bee4d46356d"
+    },
+    "tests/test_visualization_tools.R": {
+      "checksum": "10b035a6b22cbfdcfbdc1ed544083b23"
     },
     "tests/test_weather_api.R": {
-      "checksum": "66093780c43938ffb02af06f904f54f2"
+      "checksum": "657b891b136422aeb31c070b59584dfd"
     },
     "www/css/app.css": {
-      "checksum": "ad41238a3cc671ce44457ff04fbf853b"
+      "checksum": "72995b8593c8268bb918b5517c90c5a6"
     },
     "www/icons/open-meteo-favicon.ico": {
       "checksum": "ff2b686e7efd3ce80ce58ac85f75140b"
@@ -5418,11 +5503,14 @@
     "www/icons/usda-nass-logo.png": {
       "checksum": "d87110421894e79a455cee1cabdf4fb9"
     },
+    "www/icons/vasper-logo.svg": {
+      "checksum": "eeb886f06940dbdf05b983877d423949"
+    },
     "www/icons/weatherlink-logo.png": {
       "checksum": "4020b08253da77ce99a2382c82884d1a"
     },
     "www/js/navigation.js": {
-      "checksum": "34d7a8504f03334614fce5a1fe5c5b93"
+      "checksum": "bc2f0cec19c5108d38176e84378a90ed"
     },
     "www/js/scroll.js": {
       "checksum": "732770496841acb4df79db17b758d6bd"
