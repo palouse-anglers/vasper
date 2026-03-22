@@ -5,7 +5,8 @@ TABLE_NAMES <- list(
   soil_data = "soil_data",
   data_dictionary = "data_dictionary",
   sample_locations = "sample_locations",
-  table_metadata = "table_metadata"
+  table_metadata = "table_metadata",
+  visual_artifact_metadata = "visual_artifact_metadata"
 )
 
 # Report defaults and conventions.
@@ -21,13 +22,18 @@ REPORT_FORMATS <- c(
 )
 
 # Navigation and page registry.
-APP_PAGE_KEYS <- c("data", "reports")
+APP_PAGE_KEYS <- c("data", "visuals", "reports")
 
 APP_PAGES <- list(
   data = list(
     title = "Data",
     icon = "database",
     icon_fallback = "table"
+  ),
+  visuals = list(
+    title = "Visuals",
+    icon = "chart-bar",
+    icon_fallback = "image"
   ),
   reports = list(
     title = "Reports",

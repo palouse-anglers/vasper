@@ -87,6 +87,12 @@ ui <- page_fillable(
           report_controls_ui("report_controls")
         ),
 
+        # Visual artifacts
+        nav_panel_hidden(
+          value = "visuals",
+          visual_artifacts_ui("visual_artifacts")
+        ),
+
         # Data
         nav_panel_hidden(
           value = "data",
@@ -110,6 +116,15 @@ server <- function(input, output, session) {
     refresh_nonce_r = reactive(data_refresh_nonce()),
     include_tables = c(TABLE_NAMES$table_metadata),
     ignore_tables = character()
+  )
+
+  visual_artifacts_server(
+    id = "visual_artifacts",
+    con = con,
+    refresh_nonce_r = reactive(data_refresh_nonce()),
+    on_refresh_cb = function() {
+      data_refresh_nonce(data_refresh_nonce() + 1)
+    }
   )
 
   get_data_table_metadata <- tool(
@@ -547,7 +562,7 @@ server <- function(input, output, session) {
     archived <- isolate(chat_state$archived_threads)
 
     if (length(archived) == 0) {
-      showNotification("No archived chats yet.", type = "message")
+      showNotification("No archived chats yet.", type = "warning")
       return(invisible(NULL))
     }
 

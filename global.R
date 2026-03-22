@@ -26,6 +26,8 @@ library(plotly)
 library(leaflet)
 library(DT)
 library(thematic)
+library(patchwork)
+library(ggridges)
 
 # Reports ----
 library(quarto)
@@ -75,6 +77,7 @@ dbExecute(
 
 # Initialize metadata registry for user-facing data labels
 ensure_table_metadata(con)
+ensure_visual_artifact_metadata(con)
 
 
 # Extract Sample Locations and write to DuckDB ----
@@ -152,6 +155,55 @@ upsert_table_metadata(
   column_count = length(DBI::dbListFields(con, TABLE_NAMES$table_metadata)),
   is_active = TRUE
 )
+
+upsert_table_metadata(
+  con = con,
+  table_name = TABLE_NAMES$visual_artifact_metadata,
+  table_label = "Visualization Artifacts",
+  source = "system",
+  source_detail = "System visualization artifact registry table",
+  row_count = DBI::dbGetQuery(
+    con,
+    glue::glue(
+      "SELECT COUNT(*) AS n FROM {TABLE_NAMES$visual_artifact_metadata}"
+    )
+  )$n[[1]],
+  column_count = length(DBI::dbListFields(
+    con,
+    TABLE_NAMES$visual_artifact_metadata
+  )),
+  is_active = TRUE
+)
+
+# Helper: Deterministic Tool Table Naming ----
+normalize_table_name_component <- function(x, default = "na", max_chars = 48L) {
+  values <- unlist(x, recursive = TRUE, use.names = FALSE)
+  values <- as.character(values)
+  values <- trimws(values)
+  values <- values[nzchar(values)]
+
+  if (length(values) == 0) {
+    return(default)
+  }
+
+  value <- paste(values, collapse = "_")
+  value <- tolower(value)
+  value <- gsub("[^a-z0-9]+", "_", value)
+  value <- gsub("_+", "_", value)
+  value <- gsub("^_|_$", "", value)
+
+  max_chars <- as.integer(max_chars)
+  if (!is.na(max_chars) && max_chars > 0L && nchar(value) > max_chars) {
+    value <- substr(value, 1, max_chars)
+    value <- gsub("_+$", "", value)
+  }
+
+  if (!nzchar(value)) {
+    return(default)
+  }
+
+  value
+}
 
 normalize_table_name_values <- function(
   values,
@@ -814,6 +866,264 @@ query_tables <- tool(
   )
 )
 
+# Tool: List plot schema summaries
+list_plot_schemas <- tool(
+  function() {
+    run_list_plot_schemas()
+  },
+  name = "list_plot_schemas",
+  description = paste(
+    "Return summary metadata for all available plot schemas.",
+    "Includes schema name, description, and parameter spec (no template code).",
+    "Call this first, then call read_plot_schemas with selected schema name(s)."
+  ),
+  arguments = list(),
+  annotations = tool_annotations(
+    title = "List Plot Schemas",
+    icon = icon("list")
+  )
+)
+
+# Tool: Read selected plot schemas (full payload)
+read_plot_schemas <- tool(
+  function(schema_names) {
+    run_read_plot_schemas(schema_names = schema_names)
+  },
+  name = "read_plot_schemas",
+  description = paste(
+    "Return the full payload for selected plot schemas.",
+    "Includes template code for the provided schema name(s).",
+    "Call list_plot_schemas first, then pass selected schema names here."
+  ),
+  arguments = list(
+    schema_names = type_array(
+      type_string(),
+      "One or more schema names selected from list_plot_schemas."
+    )
+  ),
+  annotations = tool_annotations(
+    title = "Read Plot Schemas",
+    icon = icon("book")
+  )
+)
+
+# Tool: Create plot from schema
+create_plot_from_schema <- tool(
+  function(
+    schema_name,
+    table_name,
+    column_map,
+    description,
+    title = NULL,
+    subtitle = NULL,
+    artifact_name,
+    artifact_label = NULL,
+    width = 9,
+    height = 5,
+    dpi = 180,
+    add_data_view = TRUE
+  ) {
+    run_create_plot_from_schema(
+      con = con,
+      schema_name = schema_name,
+      table_name = table_name,
+      column_map = column_map,
+      description = description,
+      title = title,
+      subtitle = subtitle,
+      artifact_name = artifact_name,
+      artifact_label = artifact_label,
+      width = width,
+      height = height,
+      dpi = dpi,
+      add_data_view = isTRUE(add_data_view)
+    )
+  },
+  name = "create_plot_from_schema",
+  description = paste(
+    "Create a ggplot artifact by selecting a named schema and providing column mappings.",
+    "Schema templates are curated and tested — prefer this over create_plot_code.",
+    "artifact_name is required.",
+    "Call list_plot_schemas first, then read_plot_schemas for selected templates.",
+    "Available schemas: basic, grouped_boxplot_jitter, faceted_trend_line,",
+    "lollipop_threshold, multi_metric_facet_bar, scatter_with_marginals,",
+    "stacked_proportion_bar, ridgeline_density, dual_axis_yield_soil."
+  ),
+  arguments = list(
+    schema_name = type_string(
+      "Name of the schema to use (from read_plot_schemas)."
+    ),
+    table_name = type_string("Input table name in DuckDB."),
+    column_map = plot_column_map_type(
+      "Named mapping of schema parameters to column names or values."
+    ),
+    description = type_string(
+      "Plain-text description of what the plot shows (required)."
+    ),
+    title = type_string("Optional chart title.", required = FALSE),
+    subtitle = type_string("Optional chart subtitle.", required = FALSE),
+    artifact_name = type_string(
+      "Required stable artifact id slug.",
+      required = TRUE
+    ),
+    artifact_label = type_string(
+      "Optional user-facing artifact label.",
+      required = FALSE
+    ),
+    width = type_number(
+      "Output width in inches (default 9).",
+      required = FALSE
+    ),
+    height = type_number(
+      "Output height in inches (default 5).",
+      required = FALSE
+    ),
+    dpi = type_number("PNG DPI (default 180).", required = FALSE),
+    add_data_view = type_boolean(
+      "Whether to add visual_artifact_metadata to Data views (default TRUE).",
+      required = FALSE
+    )
+  ),
+  annotations = tool_annotations(
+    title = "Create Plot (Schema)",
+    icon = icon("chart-bar")
+  )
+)
+
+# Tool: Create layered ggplot from code (requires inspiration schemas)
+create_plot_code <- tool(
+  function(
+    plot_code,
+    table_names,
+    description,
+    inspiration_schemas,
+    artifact_name,
+    artifact_label = NULL,
+    title = NULL,
+    subtitle = NULL,
+    width = 9,
+    height = 5,
+    dpi = 180,
+    limit_rows = 50000,
+    add_data_view = TRUE
+  ) {
+    run_create_plot_code(
+      con = con,
+      plot_code = plot_code,
+      table_names = table_names,
+      description = description,
+      inspiration_schemas = inspiration_schemas,
+      artifact_name = artifact_name,
+      artifact_label = artifact_label,
+      title = title,
+      subtitle = subtitle,
+      width = width,
+      height = height,
+      dpi = dpi,
+      limit_rows = as.integer(limit_rows),
+      add_data_view = isTRUE(add_data_view)
+    )
+  },
+  name = "create_plot_code",
+  description = paste(
+    "Create a ggplot artifact from explicit R code.",
+    "Use ONLY when no schema template fits. You MUST first call list_plot_schemas/read_plot_schemas,",
+    "then pass one or more schema names via inspiration_schemas.",
+    "artifact_name is required.",
+    "Schema template code is injected as comments for reference.",
+    "Tables are available as data frames by name. Code must eval to a ggplot/patchwork object."
+  ),
+  arguments = list(
+    plot_code = type_string(
+      "R code that evaluates to a ggplot or patchwork object."
+    ),
+    table_names = type_array(
+      type_string(),
+      "One or more DuckDB table names made available to plot_code.",
+      required = TRUE
+    ),
+    description = type_string(
+      "Plain-text description of what the plot shows (required)."
+    ),
+    inspiration_schemas = type_array(
+      type_string(),
+      "One or more schema names from list_plot_schemas/read_plot_schemas that inspired your code (required).",
+      required = TRUE
+    ),
+    artifact_name = type_string(
+      "Required stable artifact id slug.",
+      required = TRUE
+    ),
+    artifact_label = type_string(
+      "Optional user-facing artifact label.",
+      required = FALSE
+    ),
+    title = type_string("Optional title override.", required = FALSE),
+    subtitle = type_string("Optional subtitle override.", required = FALSE),
+    width = type_number(
+      "Output width in inches (default 9).",
+      required = FALSE
+    ),
+    height = type_number(
+      "Output height in inches (default 5).",
+      required = FALSE
+    ),
+    dpi = type_number("PNG DPI (default 180).", required = FALSE),
+    limit_rows = type_number(
+      "Maximum rows loaded per input table (default 50000).",
+      required = FALSE
+    ),
+    add_data_view = type_boolean(
+      "Whether to add visual_artifact_metadata to Data views (default TRUE).",
+      required = FALSE
+    )
+  ),
+  annotations = tool_annotations(
+    title = "Create Plot (Code)",
+    icon = icon("code")
+  )
+)
+
+# Tool: Get visualization artifact metadata
+tool_get_visual_artifact_metadata <- tool(
+  function(
+    artifact_ids = NULL,
+    artifact_type = NULL,
+    include_inactive = FALSE
+  ) {
+    get_visual_artifact_metadata(
+      con = con,
+      artifact_ids = artifact_ids,
+      artifact_type = artifact_type,
+      include_inactive = isTRUE(include_inactive)
+    )
+  },
+  name = "get_visual_artifact_metadata",
+  description = paste(
+    "List generated chart/map artifacts from visual_artifact_metadata.",
+    "Returns paths to SVG/PNG files plus plotting specs for downstream reuse or editing."
+  ),
+  arguments = list(
+    artifact_ids = type_array(
+      type_string(),
+      "Optional artifact_id filter.",
+      required = FALSE
+    ),
+    artifact_type = type_string(
+      "Optional artifact type filter (e.g. 'plot').",
+      required = FALSE
+    ),
+    include_inactive = type_boolean(
+      "Whether to include inactive records (default FALSE).",
+      required = FALSE
+    )
+  ),
+  annotations = tool_annotations(
+    title = "Artifact Metadata",
+    icon = icon("file-image")
+  )
+)
+
 # Prompt Profiles and Chat Tool Registry ----
 
 prompt_config <- resolve_prompt_manifest(file.path("prompts", "manifest.json"))
@@ -826,7 +1136,12 @@ CHAT_TOOLS <- list(
   get_weather_current_davis = tool_get_weather_current_davis,
   get_weather_historical_davis = tool_get_weather_historical_davis,
   get_yield_historical_nass = get_yield_historical_nass,
-  query_tables = query_tables
+  query_tables = query_tables,
+  list_plot_schemas = list_plot_schemas,
+  read_plot_schemas = read_plot_schemas,
+  create_plot_from_schema = create_plot_from_schema,
+  create_plot_code = create_plot_code,
+  get_visual_artifact_metadata = tool_get_visual_artifact_metadata
 )
 
 # Detect available LLM provider based on environment variables
