@@ -80,6 +80,7 @@ describe("get_weather_data() - Core Function", {
 
     expect_s3_class(result, "tbl_df")
     expect_true("time" %in% names(result))
+    expect_true("time_day_of_week" %in% names(result))
     expect_true("temperature_2m_max" %in% names(result))
     expect_gte(nrow(result), 7)
   })
@@ -99,6 +100,7 @@ describe("get_weather_data() - Core Function", {
 
     expect_s3_class(result, "tbl_df")
     expect_equal(nrow(result), 31)
+    expect_true("time_day_of_week" %in% names(result))
     expect_true("temperature_2m_max" %in% names(result))
     expect_true("precipitation_sum" %in% names(result))
   })

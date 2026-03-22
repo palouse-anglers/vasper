@@ -41,6 +41,7 @@ describe("flatten_davis_weather_records()", {
     expect_s3_class(result, "tbl_df")
     expect_equal(nrow(result), 1)
     expect_true("realts" %in% names(result))
+    expect_true("ts_day_of_week" %in% names(result))
     expect_true("temp_out" %in% names(result))
     expect_equal(result$station_uuid[[1]], "station-uuid-1")
     expect_equal(result$sensor_type[[1]], 31)
@@ -67,6 +68,7 @@ describe("flatten_davis_weather_records()", {
 
     expect_equal(nrow(result), 1)
     expect_true(all(c("ts", "tz_offset", "realts") %in% names(result)))
+    expect_true("ts_day_of_week" %in% names(result))
   })
 })
 

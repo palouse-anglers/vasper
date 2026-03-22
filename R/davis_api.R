@@ -126,6 +126,7 @@ flatten_davis_weather_records <- function(
           sensor_type = value_or(sensor$sensor_type, NA),
           data_structure_type = value_or(sensor$data_structure_type, NA),
           ts = as.POSIXct(NA, origin = "1970-01-01", tz = "UTC"),
+          ts_day_of_week = NA_character_,
           tz_offset = NA_real_,
           realts = as.POSIXct(NA, origin = "1970-01-01", tz = "UTC")
         )
@@ -182,6 +183,10 @@ flatten_davis_weather_records <- function(
             as.numeric(ts) + as.numeric(tz_offset),
             origin = "1970-01-01",
             tz = "UTC"
+          ),
+          ts_day_of_week = weekdays(
+            as.Date(ts),
+            abbreviate = FALSE
           )
         ) |>
         dplyr::relocate(realts, .before = ts)
@@ -202,6 +207,21 @@ get_weather_stations_davis <- function() {
 
   purrr::map_dfr(stations, function(station) {
     tz <- value_or(station$time_zone, "UTC")
+    registered_date <- as.POSIXct(
+      value_or(station$registered_date, NA),
+      origin = "1970-01-01",
+      tz = tz
+    )
+    subscription_end_date <- as.POSIXct(
+      value_or(station$subscription_end_date, NA),
+      origin = "1970-01-01",
+      tz = tz
+    )
+    generated_at <- as.POSIXct(
+      value_or(response$generated_at, NA),
+      origin = "1970-01-01",
+      tz = "UTC"
+    )
 
     tibble::tibble(
       station_id = value_or(station$station_id, NA),
@@ -218,16 +238,8 @@ get_weather_stations_davis <- function() {
       recording_interval = value_or(station$recording_interval, NA),
       firmware_version = value_or(station$firmware_version, NA),
       imei = value_or(station$imei, NA),
-      registered_date = as.POSIXct(
-        value_or(station$registered_date, NA),
-        origin = "1970-01-01",
-        tz = tz
-      ),
-      subscription_end_date = as.POSIXct(
-        value_or(station$subscription_end_date, NA),
-        origin = "1970-01-01",
-        tz = tz
-      ),
+      registered_date = registered_date,
+      subscription_end_date = subscription_end_date,
       time_zone = value_or(station$time_zone, NA),
       city = value_or(station$city, NA),
       region = value_or(station$region, NA),
@@ -238,11 +250,7 @@ get_weather_stations_davis <- function() {
       gateway_type = value_or(station$gateway_type, NA),
       relationship_type = value_or(station$relationship_type, NA),
       subscription_type = value_or(station$subscription_type, NA),
-      generated_at = as.POSIXct(
-        value_or(response$generated_at, NA),
-        origin = "1970-01-01",
-        tz = "UTC"
-      )
+      generated_at = generated_at
     )
   })
 }

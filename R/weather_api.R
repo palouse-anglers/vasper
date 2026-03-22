@@ -145,6 +145,7 @@ get_weather_data <- function(
   result <- tibble::as_tibble(data$daily) |>
     dplyr::mutate(
       time = as.Date(time),
+      time_day_of_week = weekdays(time, abbreviate = FALSE),
       latitude = latitude,
       longitude = longitude
     ) |>
