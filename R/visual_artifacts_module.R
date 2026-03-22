@@ -95,6 +95,8 @@ build_artifact_chat_system_prompt <- function(artifact) {
     "- Then use create_plot_from_schema or create_plot_code.\n",
     "- Use rerender_visual_artifact to tweak the existing artifact with overrides.\n",
     "- Use query_tables if you need data exploration. Persisted query results must use NEW table names.\n",
+    "- Use get_table_profile when you need deep diagnostics for one table.\n",
+    "- Before changing mapped columns, use profile output to avoid all-missing/high-missing fields.\n",
     "- The artifact_name for any new plot should be '",
     artifact$artifact_id,
     "' to replace the current one.\n",
@@ -507,6 +509,33 @@ visual_artifacts_server <- function(
         )
       )
 
+      tool_profile <- tool(
+        function(table_name, sample_values_n = 3, max_sample_chars = 120) {
+          get_table_profile(
+            con = con,
+            table_name = table_name,
+            sample_values_n = as.integer(sample_values_n),
+            max_sample_chars = as.integer(max_sample_chars)
+          )
+        },
+        name = "get_table_profile",
+        description = paste(
+          "Profile one table with per-column missingness,",
+          "distinct counts, and unique sample values."
+        ),
+        arguments = list(
+          table_name = type_string("Table name to profile."),
+          sample_values_n = type_number(
+            "Distinct sample values per column (default 3, max 20).",
+            required = FALSE
+          ),
+          max_sample_chars = type_number(
+            "Max characters per sampled value (default 120).",
+            required = FALSE
+          )
+        )
+      )
+
       # escalate_to_main_chat
       tool_escalate <- tool(
         function(message) {
@@ -533,6 +562,7 @@ visual_artifacts_server <- function(
         tool_code_plot,
         tool_rerender,
         tool_query,
+        tool_profile,
         tool_escalate
       )
     }

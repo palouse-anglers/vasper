@@ -46,6 +46,8 @@ Visualization support:
 - create_plot_from_schema requires artifact_name
 - create_plot_code requires inspiration_schemas and artifact_name
 - Every visualization tool call requires description
+- Before mapping plot columns, run get_table_profile for the target table when column quality is uncertain
+- Do not map columns flagged as all missing/high missing unless the user explicitly asks
 - Available schemas: basic, grouped_boxplot_jitter, faceted_trend_line, lollipop_threshold, multi_metric_facet_bar, scatter_with_marginals, stacked_proportion_bar, ridgeline_density, dual_axis_yield_soil
 
 For recent past-hour conditions, prefer Davis tools: call get_weather_stations_davis first, then get_weather_current_davis for one or more local stations.
@@ -58,6 +60,7 @@ Weather scope is based on location/time window (not the full variable list), so 
 For NASS SQL, use the exact deterministic table_name values returned by the most recent tool call in this session.
 After calling tools, you can query across weather, yields, and soil data using SQL.
 For available tables/columns, call get_data_table_metadata (includes table_name, table_label, variable_names, dimensions, source/source_detail).
+For deep single-table diagnostics, call get_table_profile (missingness, distinct counts, and sample unique values per column).
 Do not assume variable names when uncertain; use get_data_table_metadata first.
 When you need data values, call query_tables on the recently created table(s).
 

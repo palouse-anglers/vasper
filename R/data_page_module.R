@@ -337,6 +337,8 @@ data_view_module_server <- function(
         "\n",
         "\nYou can:\n",
         "- Run SQL queries with query_tables.\n",
+        "- Profile one table deeply with get_table_profile.\n",
+        "- Use profile output to avoid all-missing/high-missing fields when proposing features.\n",
         "- Save query results by setting persist = TRUE and providing output_table_names and output_table_labels.\n",
         "- Persisted results must use NEW table names. Existing tables cannot be replaced.\n",
         "- List schemas with list_plot_schemas, then load selected templates with read_plot_schemas.\n",
@@ -427,6 +429,33 @@ data_view_module_server <- function(
         )
       )
 
+      tool_profile <- tool(
+        function(table_name, sample_values_n = 3, max_sample_chars = 120) {
+          get_table_profile(
+            con = con,
+            table_name = table_name,
+            sample_values_n = as.integer(sample_values_n),
+            max_sample_chars = as.integer(max_sample_chars)
+          )
+        },
+        name = "get_table_profile",
+        description = paste(
+          "Profile one table with per-column missingness,",
+          "distinct counts, and unique sample values."
+        ),
+        arguments = list(
+          table_name = type_string("Table name to profile."),
+          sample_values_n = type_number(
+            "Distinct sample values per column (default 3, max 20).",
+            required = FALSE
+          ),
+          max_sample_chars = type_number(
+            "Max characters per sampled value (default 120).",
+            required = FALSE
+          )
+        )
+      )
+
       tool_escalate <- tool(
         function(message) {
           session$sendCustomMessage(
@@ -450,6 +479,7 @@ data_view_module_server <- function(
         tool_list_schemas,
         tool_read_schemas,
         tool_query,
+        tool_profile,
         tool_escalate
       )
     }

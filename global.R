@@ -866,6 +866,44 @@ query_tables <- tool(
   )
 )
 
+# Tool: Deep profile for one table
+tool_get_table_profile <- tool(
+  function(
+    table_name,
+    sample_values_n = 3,
+    max_sample_chars = 120
+  ) {
+    get_table_profile(
+      con = con,
+      table_name = table_name,
+      sample_values_n = as.integer(sample_values_n),
+      max_sample_chars = as.integer(max_sample_chars)
+    )
+  },
+  name = "get_table_profile",
+  description = paste(
+    "Deep profile of one table for rapid understanding.",
+    "Returns per-column data types, missing/null/blank counts, distinct non-missing counts,",
+    "and a small list of unique sample values per column.",
+    "Use this when you need detailed diagnostics for a single dataset."
+  ),
+  arguments = list(
+    table_name = type_string("Table name to profile."),
+    sample_values_n = type_number(
+      "Distinct sample values per column (default 3, max 20).",
+      required = FALSE
+    ),
+    max_sample_chars = type_number(
+      "Max characters per sampled value (default 120).",
+      required = FALSE
+    )
+  ),
+  annotations = tool_annotations(
+    title = "Table Profile",
+    icon = icon("table")
+  )
+)
+
 # Tool: List plot schema summaries
 list_plot_schemas <- tool(
   function() {
@@ -943,6 +981,7 @@ create_plot_from_schema <- tool(
   description = paste(
     "Create a ggplot artifact by selecting a named schema and providing column mappings.",
     "Schema templates are curated and tested — prefer this over create_plot_code.",
+    "If mapped columns are uncertain, call get_table_profile first and avoid all-missing/high-missing fields.",
     "artifact_name is required.",
     "Call list_plot_schemas first, then read_plot_schemas for selected templates.",
     "Available schemas: basic, grouped_boxplot_jitter, faceted_trend_line,",
@@ -1029,6 +1068,7 @@ create_plot_code <- tool(
     "Create a ggplot artifact from explicit R code.",
     "Use ONLY when no schema template fits. You MUST first call list_plot_schemas/read_plot_schemas,",
     "then pass one or more schema names via inspiration_schemas.",
+    "Use get_table_profile first when column quality is uncertain; avoid all-missing/high-missing mappings.",
     "artifact_name is required.",
     "Schema template code is injected as comments for reference.",
     "Tables are available as data frames by name. Code must eval to a ggplot/patchwork object."
@@ -1137,6 +1177,7 @@ CHAT_TOOLS <- list(
   get_weather_historical_davis = tool_get_weather_historical_davis,
   get_yield_historical_nass = get_yield_historical_nass,
   query_tables = query_tables,
+  get_table_profile = tool_get_table_profile,
   list_plot_schemas = list_plot_schemas,
   read_plot_schemas = read_plot_schemas,
   create_plot_from_schema = create_plot_from_schema,

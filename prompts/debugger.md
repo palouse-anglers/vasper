@@ -34,12 +34,15 @@ Naming and metadata checks:
 - Weather scope is based on location/time window (not full variable list)
 - For SQL verification, always use exact table_name values returned by tool results
 - If names are uncertain, call get_data_table_metadata before query_tables
+- Use get_table_profile for deep one-table checks (missingness, distinct counts, sample values)
 
 Visualization checks:
 - Preferred flow: list_plot_schemas -> read_plot_schemas -> create_plot_from_schema
 - create_plot_from_schema requires: schema_name, table_name, column_map, description, artifact_name
 - create_plot_code requires: plot_code, table_names, description, inspiration_schemas, artifact_name
 - Every visualization call must include description
+- Before visualization calls, use get_table_profile to verify mapped columns are not fully missing
+- Flag WARN when a mapped column is high-missing or all-missing but still used in a chart
 
 For recent condition checks, prefer this sequence:
 - get_weather_stations_davis
