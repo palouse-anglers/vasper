@@ -193,6 +193,43 @@
     window.Shiny.addCustomMessageHandler(SET_ACTION_ENABLED_HANDLER_NAME, setActionEnabled);
   }
 
+  // -- Escalate-to-main-chat handler -----------------------------------------
+  // Receives a custom message from ephemeral sub-chat with {message: "..."},
+  // navigates to the main chat page, injects the message as a Shiny input,
+  // and closes the modal.
+  function registerEscalationHandler() {
+    if (!window.Shiny || typeof window.Shiny.addCustomMessageHandler !== "function") {
+      window.setTimeout(registerEscalationHandler, 50);
+      return;
+    }
+
+    if (window.__vasperEscalationHandlerRegistered) return;
+    window.__vasperEscalationHandlerRegistered = true;
+
+    window.Shiny.addCustomMessageHandler("escalate_to_main_chat", function(payload) {
+      var message = (payload && payload.message) || "";
+      if (!message) return;
+
+      // Navigate to chat page
+      activatePageClientSide("chat");
+
+      // Close any open modal
+      var modal = document.querySelector(".modal.show, .modal.in");
+      if (modal && window.bootstrap && window.bootstrap.Modal) {
+        var modalInstance = window.bootstrap.Modal.getInstance(modal);
+        if (modalInstance) modalInstance.hide();
+      }
+
+      // Send the message to the main chat input (global namespace)
+      window.Shiny.setInputValue(
+        "main_chat_user_input",
+        message,
+        { priority: "event" }
+      );
+    });
+  }
+
   registerClientNavInterceptors();
   registerNavigationHandlers();
+  registerEscalationHandler();
 })();

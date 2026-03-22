@@ -288,3 +288,103 @@ should_archive_entry <- function(entry) {
 format_timestamp <- function(x) {
   format(x, "%Y-%m-%d %H:%M")
 }
+
+destroy_chat_observers <- function(observers) {
+  if (!is.list(observers) || length(observers) == 0) {
+    return(invisible(NULL))
+  }
+
+  for (observer in observers) {
+    if (!is.null(observer)) {
+      observer$destroy()
+    }
+  }
+
+  invisible(NULL)
+}
+
+register_subchat_streaming <- function(
+  session,
+  input,
+  user_input_id,
+  chat_id,
+  chat_client,
+  existing_observers = list(),
+  busy_message = "Please wait for the current response to finish.",
+  chat_error_prefix = "Chat error: ",
+  stream_error_prefix = "Stream error: "
+) {
+  destroy_chat_observers(existing_observers)
+
+  is_pending <- shiny::reactiveVal(FALSE)
+
+  input_observer <- shiny::observeEvent(
+    input[[user_input_id]],
+    {
+      user_input <- sanitize_chat_text_scalar(input[[user_input_id]])
+      shiny::req(!is.na(user_input))
+
+      if (isTRUE(shiny::isolate(is_pending()))) {
+        shiny::showNotification(
+          busy_message,
+          type = "message",
+          duration = 2
+        )
+        return(invisible(NULL))
+      }
+
+      response_stream <- tryCatch(
+        chat_client$stream_async(
+          user_input,
+          tool_mode = "sequential",
+          stream = "content"
+        ),
+        error = function(e) {
+          is_pending(FALSE)
+          shiny::showNotification(
+            paste0(chat_error_prefix, conditionMessage(e)),
+            type = "error"
+          )
+          NULL
+        }
+      )
+
+      shiny::req(!is.null(response_stream))
+      is_pending(TRUE)
+
+      append_promise <- tryCatch(
+        chat_append(chat_id, response_stream),
+        error = function(e) {
+          is_pending(FALSE)
+          shiny::showNotification(
+            paste0(stream_error_prefix, conditionMessage(e)),
+            type = "error"
+          )
+          NULL
+        }
+      )
+
+      shiny::req(!is.null(append_promise))
+
+      promises::then(
+        append_promise,
+        onFulfilled = function(...) {
+          is_pending(FALSE)
+          invisible(NULL)
+        },
+        onRejected = function(e) {
+          is_pending(FALSE)
+          shiny::showNotification(
+            paste0(stream_error_prefix, conditionMessage(e)),
+            type = "error"
+          )
+
+          invisible(NULL)
+        }
+      )
+    },
+    ignoreInit = TRUE
+  )
+
+  list(input_observer)
+}

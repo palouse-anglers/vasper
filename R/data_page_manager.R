@@ -57,6 +57,7 @@ data_page_manager_server <- function(
     module_counter <- reactiveVal(0)
     started_module_ids <- reactiveVal(character())
     selected_tables <- reactiveVal(list())
+    metadata_nonce <- reactiveVal(0L)
 
     startup_tables <- unique(c(
       unname(unlist(TABLE_NAMES, use.names = FALSE)),
@@ -138,6 +139,7 @@ data_page_manager_server <- function(
 
     metadata_r <- reactive({
       refresh_nonce_r()
+      metadata_nonce()
 
       md <- get_table_metadata(
         con = con,
@@ -163,8 +165,7 @@ data_page_manager_server <- function(
           ),
           .group_rank = vapply(.group_id, table_group_rank, integer(1))
         ) |>
-        dplyr::arrange(.group_rank, table_label, table_name) |>
-        dplyr::select(-.group_id, -.group_rank)
+        dplyr::arrange(.group_rank, table_label, table_name)
     })
 
     remove_module <- function(module_id) {
@@ -191,7 +192,11 @@ data_page_manager_server <- function(
     }
 
     get_min_table_metadata <- function() {
-      md <- isolate(metadata_r())
+      md <- get_table_metadata(
+        con = con,
+        include_tables = include_tables,
+        ignore_tables = ignore_tables
+      )
 
       if (nrow(md) == 0) {
         return(tibble::tibble(
@@ -288,10 +293,13 @@ data_page_manager_server <- function(
       table_names <- unique(table_names[nzchar(table_names)])
 
       combined <- unique(c(get_selected_table_names(), table_names))
-      apply_selected_views(combined)
+      out <- apply_selected_views(combined)
+      metadata_nonce(isolate(metadata_nonce()) + 1L)
+      out
     }
 
     observeEvent(input$open_add_views, {
+      metadata_nonce(isolate(metadata_nonce()) + 1L)
       md <- metadata_r()
 
       if (nrow(md) == 0) {
@@ -301,30 +309,36 @@ data_page_manager_server <- function(
 
       current_selected <- unlist(selected_tables(), use.names = FALSE)
 
-      group_sections <- md |>
-        dplyr::group_split(table_group, .keep = TRUE) |>
-        lapply(function(group_md) {
-          group_label <- group_md$table_group[[1]]
-          input_id <- table_group_input_id(group_label)
+      group_order <- names(TABLE_GROUP_CONFIG)
+      present_groups <- unique(md$.group_id)
+      group_ids <- group_order[group_order %in% present_groups]
 
-          choice_names <- lapply(seq_len(nrow(group_md)), function(i) {
-            format_table_choice(
-              table_name = group_md$table_name[[i]],
-              table_label = group_md$table_label[[i]],
-              row_count = group_md$row_count[[i]],
-              column_count = group_md$column_count[[i]]
-            )
-          })
+      group_sections <- lapply(group_ids, function(group_id) {
+        group_md <- md |>
+          dplyr::filter(.group_id == group_id) |>
+          dplyr::arrange(table_label, table_name)
 
-          checkboxGroupInput(
-            session$ns(input_id),
-            label = group_label,
-            choiceNames = choice_names,
-            choiceValues = group_md$table_name,
-            selected = intersect(current_selected, group_md$table_name),
-            width = "100%"
+        group_label <- table_group_label(group_id)
+        input_id <- table_group_input_id(group_label)
+
+        choice_names <- lapply(seq_len(nrow(group_md)), function(i) {
+          format_table_choice(
+            table_name = group_md$table_name[[i]],
+            table_label = group_md$table_label[[i]],
+            row_count = group_md$row_count[[i]],
+            column_count = group_md$column_count[[i]]
           )
         })
+
+        checkboxGroupInput(
+          session$ns(input_id),
+          label = group_label,
+          choiceNames = choice_names,
+          choiceValues = group_md$table_name,
+          selected = intersect(current_selected, group_md$table_name),
+          width = "100%"
+        )
+      })
 
       showModal(
         modalDialog(
@@ -386,6 +400,9 @@ data_page_manager_server <- function(
           remove_cb = function() remove_module(module_id),
           on_select_table_cb = function(table_name) {
             register_selected_table(module_id, table_name)
+          },
+          add_views_cb = function(table_names) {
+            add_selected_views(table_names)
           },
           initial_table = spec$table_name
         )

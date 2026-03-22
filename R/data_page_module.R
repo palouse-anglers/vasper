@@ -21,6 +21,7 @@ data_view_module_ui <- function(id) {
 #' @param refresh_nonce_r Reactive expression used to refresh data
 #' @param remove_cb Callback used to remove this module
 #' @param on_select_table_cb Callback when selected table changes
+#' @param add_views_cb Callback to add new table views from subchat tool results
 #' @param initial_table Optional initial table name for this module
 #'
 #' @return Invisibly TRUE
@@ -33,11 +34,27 @@ data_view_module_server <- function(
   refresh_nonce_r,
   remove_cb,
   on_select_table_cb,
+  add_views_cb = NULL,
   initial_table = NULL
 ) {
   moduleServer(id, function(input, output, session) {
     selected_table <- reactiveVal(initial_table)
     collapsed <- reactiveVal(TRUE)
+    data_chat_observers <- reactiveVal(list())
+    data_chat_sessions <- reactiveVal(list())
+
+    local_chat_id_for_table <- function(table_name) {
+      key <- gsub("[^A-Za-z0-9_]+", "_", table_name)
+      key <- gsub("_+", "_", key)
+      key <- gsub("^_|_$", "", key)
+
+      paste0(
+        "data_chat_",
+        key,
+        "_",
+        substr(digest::digest(table_name, algo = "md5"), 1, 8)
+      )
+    }
 
     table_label <- reactive({
       tbl <- selected_table()
@@ -88,7 +105,14 @@ data_view_module_server <- function(
       tables <- tables_r()
       current <- selected_table()
 
-      if (!is.null(current) && length(tables) > 0 && !(current %in% tables)) {
+      exists_in_db <- !is.null(current) && DBI::dbExistsTable(con, current)
+
+      if (
+        !is.null(current) &&
+          length(tables) > 0 &&
+          !(current %in% tables) &&
+          !isTRUE(exists_in_db)
+      ) {
         selected_table(NULL)
       }
     })
@@ -185,8 +209,19 @@ data_view_module_server <- function(
         )
       )
 
+      chat_btn <- if (!is.null(selected)) {
+        actionButton(
+          session$ns("open_data_chat"),
+          label = NULL,
+          icon = icon("comments"),
+          class = "btn btn-sm btn-outline-primary",
+          title = "Chat about this table"
+        )
+      }
+
       controls <- div(
         class = "data-module-controls",
+        chat_btn,
         actionButton(
           session$ns("toggle_collapse"),
           label = NULL,
@@ -237,7 +272,7 @@ data_view_module_server <- function(
           } else {
             div(
               class = "text-muted small mb-2",
-              "This table is no longer available. Use 'Manage views' to add or replace views."
+              "This table is no longer available. Use 'Manage views' to add or remove views."
             )
           }
         )
@@ -245,6 +280,292 @@ data_view_module_server <- function(
     })
 
     outputOptions(output, "table_preview", suspendWhenHidden = FALSE)
+
+    # -- Ephemeral chat for query_tables data views ----------------------------
+
+    build_data_chat_system_prompt <- function(
+      tbl,
+      label,
+      source_detail,
+      column_info,
+      sample_rows
+    ) {
+      col_lines <- if (is.null(column_info) || nrow(column_info) == 0) {
+        "(column metadata unavailable)"
+      } else {
+        paste0(
+          "- ",
+          column_info$name,
+          " (",
+          column_info$type,
+          ")",
+          collapse = "\n"
+        )
+      }
+
+      paste0(
+        "You are a focused data assistant inside a small modal chat.\n",
+        "The user is looking at ONE DuckDB table from a previous query.\n",
+        "Keep responses short and scannable for mobile:\n",
+        "- default: <= 60 words or <= 4 short bullets\n",
+        "- include only directly useful details\n",
+        "- ask at most one clarification question when necessary\n\n",
+        "Table name: ",
+        tbl,
+        "\n",
+        "Label: ",
+        label,
+        "\n",
+        if (nzchar(trimws(source_detail %||% ""))) {
+          paste0("Source detail:\n", source_detail, "\n")
+        },
+        "\nColumns:\n",
+        col_lines,
+        "\n",
+        "\nSample rows (up to 5):\n",
+        paste(utils::capture.output(sample_rows), collapse = "\n"),
+        "\n",
+        "\nYou can:\n",
+        "- Run SQL queries with query_tables.\n",
+        "- Save query results by setting persist = TRUE and providing output_table_names and output_table_labels.\n",
+        "- Persisted results must use NEW table names. Existing tables cannot be replaced.\n",
+        "- List schemas with list_plot_schemas, then load selected templates with read_plot_schemas.\n",
+        "- If the user asks for a chart or visualization, use escalate_to_main_chat.\n",
+        "- If the request goes beyond your tools, use escalate_to_main_chat.\n"
+      )
+    }
+
+    build_data_chat_tools <- function() {
+      tool_list_schemas <- tool(
+        function() run_list_plot_schemas(),
+        name = "list_plot_schemas",
+        description = "List available plot schemas (summary only).",
+        arguments = list()
+      )
+
+      tool_read_schemas <- tool(
+        function(schema_names) {
+          run_read_plot_schemas(schema_names = schema_names)
+        },
+        name = "read_plot_schemas",
+        description = "Read full template payload for selected schema names.",
+        arguments = list(
+          schema_names = type_array(
+            type_string(),
+            "Schema names selected from list_plot_schemas."
+          )
+        )
+      )
+
+      tool_query <- tool(
+        function(
+          sql,
+          mode = "free",
+          input_tables = NULL,
+          output_table_names = NULL,
+          output_table_labels = NULL,
+          persist = FALSE,
+          add_data_view = TRUE
+        ) {
+          run_query_tables(
+            con = con,
+            sql = sql,
+            mode = mode,
+            input_tables = input_tables,
+            output_table_names = output_table_names,
+            output_table_labels = output_table_labels,
+            persist = isTRUE(persist),
+            add_data_view = isTRUE(add_data_view)
+          )
+        },
+        name = "query_tables",
+        description = paste(
+          "Run SQL queries against DuckDB tables.",
+          paste(
+            "Set persist=TRUE with output_table_names/output_table_labels",
+            "to save results with NEW table names."
+          )
+        ),
+        arguments = list(
+          sql = type_string("SQL query."),
+          mode = type_enum(
+            "Query mode.",
+            values = c("free", "vectorized"),
+            required = FALSE
+          ),
+          input_tables = type_array(
+            type_string(),
+            "Tables for vectorized mode.",
+            required = FALSE
+          ),
+          output_table_names = type_array(
+            type_string(),
+            "Output table name(s). Required when persist is TRUE."
+          ),
+          output_table_labels = type_array(
+            type_string(),
+            "Output table label(s). Required when persist is TRUE."
+          ),
+          persist = type_boolean(
+            "Whether to persist query results as table(s).",
+            required = FALSE
+          ),
+          add_data_view = type_boolean(
+            "Whether persisted result tables should be added to Data views.",
+            required = FALSE
+          )
+        )
+      )
+
+      tool_escalate <- tool(
+        function(message) {
+          session$sendCustomMessage(
+            "escalate_to_main_chat",
+            list(message = message)
+          )
+          list(ok = TRUE, message = "Escalated to main chat.")
+        },
+        name = "escalate_to_main_chat",
+        description = paste(
+          "Send a message to the main chat when this request exceeds your available tools,",
+          "including when the user asks for a chart or visualization.",
+          "The modal will close automatically."
+        ),
+        arguments = list(
+          message = type_string("The message to send to the main chat.")
+        )
+      )
+
+      list(
+        tool_list_schemas,
+        tool_read_schemas,
+        tool_query,
+        tool_escalate
+      )
+    }
+
+    show_data_chat <- function(tbl) {
+      req(!is.null(tbl))
+
+      label <- table_label()
+      detail <- table_source_detail()
+
+      escaped <- as.character(DBI::dbQuoteIdentifier(con, tbl))
+      sample_rows <- DBI::dbGetQuery(
+        con,
+        paste0("SELECT * FROM ", escaped, " LIMIT 5")
+      )
+
+      column_info <- tryCatch(
+        {
+          rs <- DBI::dbSendQuery(
+            con,
+            paste0("SELECT * FROM ", escaped, " LIMIT 0")
+          )
+          on.exit(DBI::dbClearResult(rs), add = TRUE)
+          info <- DBI::dbColumnInfo(rs)
+          info[, c("name", "type"), drop = FALSE]
+        },
+        error = function(e) {
+          NULL
+        }
+      )
+
+      sessions <- isolate(data_chat_sessions())
+      session_key <- tbl
+      chat_session <- sessions[[session_key]]
+
+      if (is.null(chat_session)) {
+        sys_prompt <- build_data_chat_system_prompt(
+          tbl = tbl,
+          label = label,
+          source_detail = detail,
+          column_info = column_info,
+          sample_rows = sample_rows
+        )
+        chat_client <- create_chat_client(sys_prompt)
+        chat_client$on_tool_result(function(result) {
+          parsed <- parse_tool_result_data_view(result)
+
+          if (!parsed$should_queue || length(parsed$table_names) == 0) {
+            return(invisible(NULL))
+          }
+
+          if (is.function(add_views_cb)) {
+            add_views_cb(parsed$table_names)
+          }
+
+          invisible(NULL)
+        })
+
+        tools <- build_data_chat_tools()
+        registration_ok <- tryCatch(
+          {
+            chat_client$register_tools(tools)
+            TRUE
+          },
+          error = function(e) {
+            showNotification(
+              paste0(
+                "Unable to initialize data chat tools: ",
+                conditionMessage(e)
+              ),
+              type = "error"
+            )
+            FALSE
+          }
+        )
+        req(registration_ok)
+
+        chat_session <- list(
+          chat_id = local_chat_id_for_table(tbl),
+          chat_client = chat_client
+        )
+        sessions[[session_key]] <- chat_session
+        data_chat_sessions(sessions)
+      }
+
+      local_chat_id <- chat_session$chat_id
+      chat_client <- chat_session$chat_client
+      chat_ui_id <- session$ns(local_chat_id)
+
+      showModal(
+        modalDialog(
+          title = paste0("Chat: ", label %||% tbl),
+          size = "l",
+          easyClose = TRUE,
+          tags$div(
+            style = "min-height: 350px; max-height: 60vh; overflow-y: auto;",
+            chat_ui(chat_ui_id, messages = list(), fill = FALSE)
+          ),
+          footer = modalButton("Close")
+        )
+      )
+
+      session$onFlushed(
+        function() {
+          render_chat_turns(chat_client$get_turns(), chat_id = local_chat_id)
+        },
+        once = TRUE
+      )
+
+      prev_observers <- isolate(data_chat_observers())
+      data_chat_observers(register_subchat_streaming(
+        session = session,
+        input = input,
+        user_input_id = paste0(local_chat_id, "_user_input"),
+        chat_id = local_chat_id,
+        chat_client = chat_client,
+        existing_observers = prev_observers,
+        stream_error_prefix = "Streaming error: "
+      ))
+    }
+
+    observeEvent(input$open_data_chat, {
+      tbl <- selected_table()
+      req(tbl)
+      show_data_chat(tbl)
+    })
 
     invisible(TRUE)
   })
