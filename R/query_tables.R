@@ -256,7 +256,7 @@ assert_free_sql_tables_exist <- function(con, sql) {
       usda_hint,
       similar_hint,
       recent_txt,
-      " Call get_data_table_metadata before query_tables to confirm names."
+      " Call get_table_metadata before query_tables to confirm names."
     ),
     call. = FALSE
   )

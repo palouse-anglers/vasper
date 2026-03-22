@@ -127,7 +127,7 @@ server <- function(input, output, session) {
     }
   )
 
-  get_data_table_metadata <- tool(
+  tool_get_table_metadata <- tool(
     function(
       include_source = FALSE,
       table_pattern = NULL,
@@ -183,9 +183,9 @@ server <- function(input, output, session) {
         tables = purrr::transpose(as.list(md))
       )
     },
-    name = "get_data_table_metadata",
+    name = "get_table_metadata",
     description = paste(
-      "Get available data tables from table_metadata with minimal details",
+      "Get available tables from table_metadata with minimal details",
       "(table_name, table_label, row_count, column_count, column_names).",
       "Use include_source=TRUE to include source and source_detail provenance only when you need it for SQL.",
       "Supports table_pattern regex matching and exact table_names filtering."
@@ -204,6 +204,10 @@ server <- function(input, output, session) {
         "Optional exact table_name filter list",
         required = FALSE
       )
+    ),
+    annotations = tool_annotations(
+      title = "Table Metadata",
+      icon = icon("table")
     )
   )
 
@@ -296,7 +300,7 @@ server <- function(input, output, session) {
       chat_client = chat_client,
       prompt_profile = prompt_profile,
       extra_tools = list(
-        get_data_table_metadata = get_data_table_metadata,
+        get_table_metadata = tool_get_table_metadata,
         show_page = navigation_api$show_page_tool
       )
     )

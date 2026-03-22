@@ -33,7 +33,7 @@ Naming and metadata checks:
 - NASS tables use deterministic names: usda_yields_<role>__<scope>
 - Weather scope is based on location/time window (not full variable list)
 - For SQL verification, always use exact table_name values returned by tool results
-- If names are uncertain, call get_data_table_metadata before query_tables
+- If names are uncertain, call get_table_metadata before query_tables
 - Use get_table_profile for deep one-table checks (missingness, distinct counts, sample values)
 
 Visualization checks:

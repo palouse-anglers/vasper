@@ -816,7 +816,7 @@ query_tables <- tool(
   description = paste(
     "Run DuckDB SQL against in-memory tables.",
     "Prefer SQL for most arithmetic, aggregations, and comparisons because results are reviewable and reliable.",
-    "If table names are uncertain, call get_data_table_metadata first.",
+    "If table names are uncertain, call get_table_metadata first.",
     "Use mode='vectorized' to apply one SQL suffix across explicit input tables",
     "(SQL must not contain FROM; it is appended after FROM each input table).",
     "Use mode='free' for full SQL with FROM/JOIN; free mode rejects input_tables.",

@@ -59,9 +59,9 @@ Weather tables are named weather__<tool>__<scope>; NASS tables are named usda_yi
 Weather scope is based on location/time window (not the full variable list), so names stay short and stable.
 For NASS SQL, use the exact deterministic table_name values returned by the most recent tool call in this session.
 After calling tools, you can query across weather, yields, and soil data using SQL.
-For available tables/columns, call get_data_table_metadata (includes table_name, table_label, variable_names, dimensions, source/source_detail).
+For available tables/columns, call get_table_metadata (includes table_name, table_label, variable_names, dimensions, source/source_detail).
 For deep single-table diagnostics, call get_table_profile (missingness, distinct counts, and sample unique values per column).
-Do not assume variable names when uncertain; use get_data_table_metadata first.
+Do not assume variable names when uncertain; use get_table_metadata first.
 When you need data values, call query_tables on the recently created table(s).
 
 Tool reliability and retry policy:
