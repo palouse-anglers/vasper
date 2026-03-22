@@ -218,7 +218,7 @@ describe("Database Integration", {
       data = test_data,
       con = con,
       tool_name = "forecast",
-      param_hash = "test1234",
+      table_name = "weather__forecast__latitude_46_7300__longitude_117_1800",
       table_label = "Test Forecast Table"
     )
 
@@ -239,7 +239,7 @@ describe("Database Integration", {
     DBI::dbDisconnect(con)
   })
 
-  test_that("write_weather_to_db() caches data (doesn't overwrite)", {
+  test_that("write_weather_to_db() overwrites deterministic tables", {
     con <- DBI::dbConnect(RSQLite::SQLite(), ":memory:")
 
     test_data <- tibble(
@@ -249,25 +249,38 @@ describe("Database Integration", {
       longitude = test_lon
     )
 
+    updated_data <- tibble(
+      time = Sys.Date(),
+      temperature_2m_max = 61,
+      latitude = test_lat,
+      longitude = test_lon
+    )
+
     # Write once
     result1 <- write_weather_to_db(
       test_data,
       con,
       "forecast",
-      "cachtest",
+      "weather__forecast__scope_test",
       "Cached Forecast"
     )
 
-    # Try to write again - should use cached version
+    # Write again with updated data to the same deterministic table
     result2 <- write_weather_to_db(
-      test_data,
+      updated_data,
       con,
       "forecast",
-      "cachtest",
+      "weather__forecast__scope_test",
       "Cached Forecast"
     )
 
     expect_equal(result1$table_name, result2$table_name)
+
+    observed <- DBI::dbGetQuery(
+      con,
+      paste0("SELECT temperature_2m_max FROM ", result2$table_name)
+    )
+    expect_equal(observed$temperature_2m_max[[1]], 61)
 
     DBI::dbDisconnect(con)
   })

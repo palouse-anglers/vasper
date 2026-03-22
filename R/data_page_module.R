@@ -48,12 +48,17 @@ data_view_module_server <- function(
       key <- gsub("_+", "_", key)
       key <- gsub("^_|_$", "", key)
 
-      paste0(
-        "data_chat_",
-        key,
-        "_",
-        substr(digest::digest(table_name, algo = "md5"), 1, 8)
-      )
+      if (!nzchar(key)) {
+        key <- "table"
+      }
+
+      max_key_chars <- 80L
+      if (nchar(key) > max_key_chars) {
+        key <- substr(key, 1, max_key_chars)
+        key <- gsub("_+$", "", key)
+      }
+
+      paste0("data_chat_", key)
     }
 
     table_label <- reactive({
@@ -189,14 +194,19 @@ data_view_module_server <- function(
 
     output$module_ui <- renderUI({
       selected <- selected_table()
-      selected_title <- if (is.null(selected)) "No table selected" else selected
+      selected_title <- if (is.null(selected)) {
+        "No table selected"
+      } else {
+        table_label()
+      }
+      selected_name_badge <- if (is.null(selected)) "No table" else selected
 
       summary_row_collapsed <- div(
         class = "data-module-summary",
         span(class = "data-module-title", selected_title),
         tags$span(
           class = "badge text-bg-light data-module-label",
-          if (!is.null(selected)) table_label() else "No label"
+          selected_name_badge
         )
       )
 
@@ -205,7 +215,7 @@ data_view_module_server <- function(
         span(class = "data-module-title", selected_title),
         tags$span(
           class = "badge text-bg-light data-module-label",
-          if (!is.null(selected)) table_label() else "No label"
+          selected_name_badge
         )
       )
 

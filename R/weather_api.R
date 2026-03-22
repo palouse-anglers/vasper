@@ -202,9 +202,11 @@ get_n_day_forecast <- function(
 #' @param data Tibble with weather data
 #' @param con Database connection
 #' @param tool_name Name of the tool (e.g., "forecast", "historical")
-#' @param param_hash Parameter hash for table naming
+#' @param table_name Deterministic output table name
 #' @param table_label User-facing label for the table metadata registry
 #' @param add_data_view Whether this table should be added to Data views
+#' @param source_detail Optional metadata source detail text
+#' @param overwrite Whether to overwrite existing table data
 #'
 #' @return List with table metadata only
 #' @export
@@ -212,9 +214,11 @@ write_weather_to_db <- function(
   data,
   con,
   tool_name,
-  param_hash,
+  table_name,
   table_label,
-  add_data_view = TRUE
+  add_data_view = TRUE,
+  source_detail = NULL,
+  overwrite = TRUE
 ) {
   normalize_add_data_view <- function(x, default = TRUE) {
     if (is.logical(x) && length(x) == 1 && !is.na(x)) {
@@ -237,22 +241,33 @@ write_weather_to_db <- function(
   }
 
   add_data_view_flag <- normalize_add_data_view(add_data_view, default = TRUE)
+  overwrite_flag <- isTRUE(overwrite)
 
-  # Construct table name
-  table_name <- paste0("weather_", tool_name, "_", param_hash)
-
-  # Check if table already exists (caching)
-  if (DBI::dbExistsTable(con, table_name)) {
-    message("Weather data already cached in table: ", table_name)
-  } else {
-    # Write to database
-    DBI::dbWriteTable(con, table_name, data, overwrite = FALSE)
-    message("Wrote weather data to table: ", table_name)
+  table_name <- trimws(as.character(table_name[[1]]))
+  if (!nzchar(table_name)) {
+    stop("'table_name' must be a non-empty string.", call. = FALSE)
   }
+
+  max_table_name_chars <- 128L
+  if (nchar(table_name) > max_table_name_chars) {
+    table_name <- substr(table_name, 1, max_table_name_chars)
+    table_name <- gsub("_+$", "", table_name)
+  }
+
+  DBI::dbWriteTable(con, table_name, data, overwrite = overwrite_flag)
 
   # Read back for metadata
   row_count <- nrow(data)
   columns <- names(data)
+  source_detail <- source_detail %||%
+    paste0(
+      "tool=",
+      paste0("get_weather_", tool_name),
+      "; table_name=",
+      table_name,
+      "; overwrite=",
+      overwrite_flag
+    )
 
   # Upsert label metadata (required for Data page selectors)
   upsert_table_metadata(
@@ -260,12 +275,7 @@ write_weather_to_db <- function(
     table_name = table_name,
     table_label = table_label,
     source = paste0("weather_", tool_name),
-    source_detail = paste0(
-      "tool=",
-      paste0("get_weather_", tool_name),
-      "; param_hash=",
-      param_hash
-    ),
+    source_detail = source_detail,
     row_count = row_count,
     column_count = length(columns),
     is_active = TRUE

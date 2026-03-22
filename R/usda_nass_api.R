@@ -631,9 +631,11 @@ get_columbia_county_nass_trends <- function(raw_data) {
 #' @param raw_data Tibble of raw NASS rows
 #' @param trend_data Tibble of trend NASS rows
 #' @param con DBI connection
-#' @param param_hash Parameter hash for table naming
+#' @param table_scope Deterministic scope suffix used for table naming
 #' @param table_label User-facing label root for Data page
 #' @param add_data_view Whether to add tables to open Data views
+#' @param source_detail Optional metadata source detail text
+#' @param overwrite Whether to overwrite existing table data
 #'
 #' @return List describing both output tables
 #' @export
@@ -641,9 +643,11 @@ write_yield_to_db <- function(
   raw_data,
   trend_data,
   con,
-  param_hash,
+  table_scope,
   table_label,
-  add_data_view = TRUE
+  add_data_view = TRUE,
+  source_detail = NULL,
+  overwrite = TRUE
 ) {
   if (!is.data.frame(raw_data) || ncol(raw_data) == 0) {
     raw_data <- empty_nass_raw_tbl()
@@ -653,26 +657,44 @@ write_yield_to_db <- function(
     trend_data <- empty_nass_trend_tbl()
   }
 
-  raw_table_name <- paste0("usda_yields_raw_", param_hash)
-  trend_table_name <- paste0("usda_yields_trend_", param_hash)
-
-  if (!DBI::dbExistsTable(con, raw_table_name)) {
-    DBI::dbWriteTable(con, raw_table_name, raw_data, overwrite = FALSE)
+  table_scope <- trimws(as.character(table_scope[[1]]))
+  if (!nzchar(table_scope)) {
+    stop("'table_scope' must be a non-empty string.", call. = FALSE)
   }
 
-  if (!DBI::dbExistsTable(con, trend_table_name)) {
-    DBI::dbWriteTable(con, trend_table_name, trend_data, overwrite = FALSE)
+  max_scope_chars <- 96L
+  if (nchar(table_scope) > max_scope_chars) {
+    table_scope <- substr(table_scope, 1, max_scope_chars)
+    table_scope <- gsub("_+$", "", table_scope)
   }
+
+  overwrite_flag <- isTRUE(overwrite)
+
+  raw_table_name <- paste0("usda_yields_raw__", table_scope)
+  trend_table_name <- paste0("usda_yields_trend__", table_scope)
+
+  source_detail <- source_detail %||%
+    paste0(
+      "tool=get_yield_historical_nass; scope=",
+      table_scope,
+      "; overwrite=",
+      overwrite_flag
+    )
+
+  DBI::dbWriteTable(con, raw_table_name, raw_data, overwrite = overwrite_flag)
+  DBI::dbWriteTable(
+    con,
+    trend_table_name,
+    trend_data,
+    overwrite = overwrite_flag
+  )
 
   upsert_table_metadata(
     con = con,
     table_name = raw_table_name,
     table_label = paste0(table_label, " (Raw)"),
     source = "usda_nass_raw",
-    source_detail = paste0(
-      "tool=get_yield_historical_nass; table_role=raw; param_hash=",
-      param_hash
-    ),
+    source_detail = paste0(source_detail, "; table_role=raw"),
     row_count = nrow(raw_data),
     column_count = ncol(raw_data),
     is_active = TRUE
@@ -683,10 +705,7 @@ write_yield_to_db <- function(
     table_name = trend_table_name,
     table_label = paste0(table_label, " (Trend)"),
     source = "usda_nass_trend",
-    source_detail = paste0(
-      "tool=get_yield_historical_nass; table_role=trend; param_hash=",
-      param_hash
-    ),
+    source_detail = paste0(source_detail, "; table_role=trend"),
     row_count = nrow(trend_data),
     column_count = ncol(trend_data),
     is_active = TRUE

@@ -232,7 +232,7 @@ describe("database writer", {
       raw_data = raw_data,
       trend_data = trend_data,
       con = con,
-      param_hash = "abc12345",
+      table_scope = "crops_wheat_barley__statistics_yield__year_min_2022__year_max_2023",
       table_label = "USDA Yield Test",
       add_data_view = FALSE
     )
@@ -242,12 +242,24 @@ describe("database writer", {
     expect_equal(length(result$dimensions), 2)
     expect_equal(result$dimensions[[1]]$nrow, nrow(raw_data))
     expect_equal(result$dimensions[[2]]$nrow, nrow(trend_data))
-    expect_true(DBI::dbExistsTable(con, "usda_yields_raw_abc12345"))
-    expect_true(DBI::dbExistsTable(con, "usda_yields_trend_abc12345"))
+    expect_true(DBI::dbExistsTable(
+      con,
+      "usda_yields_raw__crops_wheat_barley__statistics_yield__year_min_2022__year_max_2023"
+    ))
+    expect_true(DBI::dbExistsTable(
+      con,
+      "usda_yields_trend__crops_wheat_barley__statistics_yield__year_min_2022__year_max_2023"
+    ))
 
     metadata <- get_table_metadata(con, include_tables = c("table_metadata"))
-    expect_true("usda_yields_raw_abc12345" %in% metadata$table_name)
-    expect_true("usda_yields_trend_abc12345" %in% metadata$table_name)
+    expect_true(
+      "usda_yields_raw__crops_wheat_barley__statistics_yield__year_min_2022__year_max_2023" %in%
+        metadata$table_name
+    )
+    expect_true(
+      "usda_yields_trend__crops_wheat_barley__statistics_yield__year_min_2022__year_max_2023" %in%
+        metadata$table_name
+    )
 
     DBI::dbDisconnect(con)
   })
@@ -260,13 +272,19 @@ describe("database writer", {
       raw_data = tibble::tibble(),
       trend_data = tibble::tibble(),
       con = con,
-      param_hash = "empty123",
+      table_scope = "crops_all__statistics_default__year_min_1980__year_max_2026",
       table_label = "Empty USDA",
       add_data_view = FALSE
     )
 
-    expect_true(DBI::dbExistsTable(con, "usda_yields_raw_empty123"))
-    expect_true(DBI::dbExistsTable(con, "usda_yields_trend_empty123"))
+    expect_true(DBI::dbExistsTable(
+      con,
+      "usda_yields_raw__crops_all__statistics_default__year_min_1980__year_max_2026"
+    ))
+    expect_true(DBI::dbExistsTable(
+      con,
+      "usda_yields_trend__crops_all__statistics_default__year_min_1980__year_max_2026"
+    ))
     expect_equal(length(result$table_name), 2)
 
     DBI::dbDisconnect(con)

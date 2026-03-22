@@ -83,7 +83,7 @@ describe("run_query_tables mode validation", {
 
     DBI::dbWriteTable(
       con,
-      "usda_yields_trend_c126a819",
+      "usda_yields_trend__crops_wheat_barley__statistics_yield__year_min_2020__year_max_2021",
       tibble(
         year = c(2020L, 2021L),
         commodity_desc = c("WHEAT", "BARLEY"),
@@ -102,13 +102,13 @@ describe("run_query_tables mode validation", {
         WITH wheat_totals AS (
           SELECT year, 'WHEAT' AS commodity_desc, statisticcat_desc, unit_desc,
                  SUM(value_mean * rows_numeric) / SUM(rows_numeric) AS value_mean
-          FROM usda_yields_trend_c126a819
+          FROM usda_yields_trend__crops_wheat_barley__statistics_yield__year_min_2020__year_max_2021
           WHERE commodity_desc = 'WHEAT'
           GROUP BY year, statisticcat_desc, unit_desc
         ),
         barley_data AS (
           SELECT year, commodity_desc, statisticcat_desc, unit_desc, value_mean
-          FROM usda_yields_trend_c126a819
+          FROM usda_yields_trend__crops_wheat_barley__statistics_yield__year_min_2020__year_max_2021
           WHERE commodity_desc = 'BARLEY'
         )
         SELECT * FROM wheat_totals
@@ -242,6 +242,59 @@ describe("run_query_tables execution", {
     expect_true(DBI::dbExistsTable(con, "out_b"))
     expect_equal(length(result$variable_names), 2)
     expect_equal(length(result$dimensions), 2)
+
+    DBI::dbDisconnect(con, shutdown = TRUE)
+  })
+
+  test_that("free mode persist blocks replacing existing tables", {
+    con <- DBI::dbConnect(duckdb::duckdb(), ":memory:")
+    ensure_table_metadata(con)
+
+    DBI::dbWriteTable(con, "base_tbl", tibble(x = 1:3), overwrite = TRUE)
+    DBI::dbWriteTable(con, "existing_out", tibble(x = 4:6), overwrite = TRUE)
+
+    expect_error(
+      run_query_tables(
+        con = con,
+        mode = "free",
+        sql = "SELECT * FROM base_tbl",
+        output_table_names = c("existing_out"),
+        output_table_labels = c("Existing Out"),
+        persist = TRUE,
+        add_data_view = TRUE
+      ),
+      "cannot replace existing tables"
+    )
+
+    DBI::dbDisconnect(con, shutdown = TRUE)
+  })
+
+  test_that("vectorized persist blocks replacing existing tables", {
+    con <- DBI::dbConnect(duckdb::duckdb(), ":memory:")
+    ensure_table_metadata(con)
+
+    DBI::dbWriteTable(con, "tbl_a", tibble(x = c(1, 2, 3)), overwrite = TRUE)
+    DBI::dbWriteTable(con, "tbl_b", tibble(x = c(3, 4, 5)), overwrite = TRUE)
+    DBI::dbWriteTable(
+      con,
+      "existing_out",
+      tibble(x = c(9, 9, 9)),
+      overwrite = TRUE
+    )
+
+    expect_error(
+      run_query_tables(
+        con = con,
+        mode = "vectorized",
+        sql = "WHERE x >= 3",
+        input_tables = c("tbl_a", "tbl_b"),
+        output_table_names = c("existing_out", "new_out"),
+        output_table_labels = c("Existing Out", "New Out"),
+        persist = TRUE,
+        add_data_view = TRUE
+      ),
+      "cannot replace existing tables"
+    )
 
     DBI::dbDisconnect(con, shutdown = TRUE)
   })

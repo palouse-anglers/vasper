@@ -153,14 +153,95 @@ upsert_table_metadata(
   is_active = TRUE
 )
 
-# Helper: Hash Tool Parameters ----
-hash_tool_params <- function(...) {
-  params <- list(...)
-  # Sort parameters by name for consistency
-  params <- params[order(names(params))]
-  # Serialize and hash
-  param_string <- paste(names(params), params, sep = "=", collapse = "|")
-  substr(digest(param_string, algo = "md5"), 1, 8)
+normalize_table_name_values <- function(
+  values,
+  default = "all",
+  max_values = 4L,
+  max_chars = 48L
+) {
+  if (is.null(values)) {
+    return(default)
+  }
+
+  flat <- unlist(values, recursive = TRUE, use.names = FALSE)
+  flat <- as.character(flat)
+  flat <- trimws(flat)
+  flat <- flat[nzchar(flat)]
+
+  if (length(flat) == 0) {
+    return(default)
+  }
+
+  flat <- sort(unique(flat))
+
+  max_values <- as.integer(max_values)
+  if (is.na(max_values) || max_values < 1L) {
+    max_values <- 4L
+  }
+
+  if (length(flat) > max_values) {
+    flat <- c(
+      head(flat, max_values),
+      paste0("plus_", length(flat) - max_values)
+    )
+  }
+
+  normalize_table_name_component(
+    flat,
+    default = default,
+    max_chars = max_chars
+  )
+}
+
+build_deterministic_scope_name <- function(
+  components = list(),
+  max_chars = 120L
+) {
+  if (length(components) == 0) {
+    return("default")
+  }
+
+  keys <- names(components)
+  if (is.null(keys)) {
+    keys <- paste0("field", seq_along(components))
+  }
+
+  ordering <- order(keys)
+  keys <- keys[ordering]
+  values <- components[ordering]
+
+  chunks <- vapply(
+    seq_along(values),
+    function(i) {
+      key <- normalize_table_name_component(keys[[i]], default = "field")
+      value <- normalize_table_name_values(
+        values[[i]],
+        default = "all",
+        max_values = 4L,
+        max_chars = 40L
+      )
+      paste0(key, "_", value)
+    },
+    character(1)
+  )
+
+  out <- paste(chunks, collapse = "__")
+
+  max_chars <- as.integer(max_chars)
+  if (is.na(max_chars) || max_chars < 40L) {
+    max_chars <- 120L
+  }
+
+  if (nchar(out) > max_chars) {
+    out <- substr(out, 1, max_chars)
+    out <- gsub("_+$", "", out)
+  }
+
+  if (!nzchar(out)) {
+    return("default")
+  }
+
+  out
 }
 
 normalize_optional_string_array <- function(x, default = NULL) {
@@ -245,12 +326,17 @@ get_weather_forecast_open_meteo <- tool(
     table_label,
     add_data_view = TRUE
   ) {
-    # Hash parameters for table naming
-    param_hash <- hash_tool_params(
-      latitude = round(latitude, 4),
-      longitude = round(longitude, 4),
-      n_days = n_days,
-      variables = paste(sort(variables), collapse = ",")
+    scope_name <- build_deterministic_scope_name(list(
+      latitude = sprintf("%.4f", round(latitude, 4)),
+      longitude = sprintf("%.4f", round(longitude, 4)),
+      days = as.integer(n_days)
+    ))
+
+    table_name <- paste0("weather__forecast_open_meteo__", scope_name)
+
+    source_detail <- paste0(
+      "tool=get_weather_forecast_open_meteo; scope=",
+      scope_name
     )
 
     # Call API function
@@ -266,9 +352,10 @@ get_weather_forecast_open_meteo <- tool(
       data = weather_data,
       con = con,
       tool_name = "forecast_open_meteo",
-      param_hash = param_hash,
+      table_name = table_name,
       table_label = table_label,
-      add_data_view = add_data_view
+      add_data_view = add_data_view,
+      source_detail = source_detail
     )
   },
   name = "get_weather_forecast_open_meteo",
@@ -313,13 +400,18 @@ get_weather_historical_open_meteo <- tool(
     table_label,
     add_data_view = TRUE
   ) {
-    # Hash parameters for table naming
-    param_hash <- hash_tool_params(
-      latitude = round(latitude, 4),
-      longitude = round(longitude, 4),
-      start_date = date_range[1],
-      end_date = date_range[2],
-      variables = paste(sort(variables), collapse = ",")
+    scope_name <- build_deterministic_scope_name(list(
+      latitude = sprintf("%.4f", round(latitude, 4)),
+      longitude = sprintf("%.4f", round(longitude, 4)),
+      start_date = as.character(date_range[1]),
+      end_date = as.character(date_range[2])
+    ))
+
+    table_name <- paste0("weather__historical_open_meteo__", scope_name)
+
+    source_detail <- paste0(
+      "tool=get_weather_historical_open_meteo; scope=",
+      scope_name
     )
 
     # Call API function
@@ -336,9 +428,10 @@ get_weather_historical_open_meteo <- tool(
       data = weather_data,
       con = con,
       tool_name = "historical_open_meteo",
-      param_hash = param_hash,
+      table_name = table_name,
       table_label = table_label,
-      add_data_view = add_data_view
+      add_data_view = add_data_view,
+      source_detail = source_detail
     )
   },
   name = "get_weather_historical_open_meteo",
@@ -381,17 +474,16 @@ tool_get_weather_stations_davis <- tool(
   ) {
     stations <- get_weather_stations_davis()
 
-    param_hash <- hash_tool_params(
-      api = "stations_davis"
-    )
+    table_name <- "weather__stations_davis__scope_all"
 
     write_weather_to_db(
       data = stations,
       con = con,
       tool_name = "stations_davis",
-      param_hash = param_hash,
+      table_name = table_name,
       table_label = table_label,
-      add_data_view = add_data_view
+      add_data_view = add_data_view,
+      source_detail = "tool=get_weather_stations_davis; scope=all_stations"
     )
   },
   name = "get_weather_stations_davis",
@@ -424,21 +516,26 @@ tool_get_weather_current_davis <- tool(
       sensor_types = sensor_types
     )
 
-    param_hash <- hash_tool_params(
+    scope_name <- build_deterministic_scope_name(list(
       station_uuid = station_uuid,
-      sensor_types = paste(
-        sort(if (is.null(sensor_types)) numeric(0) else sensor_types),
-        collapse = ","
+      sensor_types = sort(
+        if (is.null(sensor_types)) numeric(0) else sensor_types
       )
-    )
+    ))
+
+    table_name <- paste0("weather__current_davis__", scope_name)
 
     write_weather_to_db(
       data = weather_data,
       con = con,
       tool_name = "current_davis",
-      param_hash = param_hash,
+      table_name = table_name,
       table_label = table_label,
-      add_data_view = add_data_view
+      add_data_view = add_data_view,
+      source_detail = paste0(
+        "tool=get_weather_current_davis; scope=",
+        scope_name
+      )
     )
   },
   name = "get_weather_current_davis",
@@ -483,23 +580,28 @@ tool_get_weather_historical_davis <- tool(
       sensor_types = sensor_types
     )
 
-    param_hash <- hash_tool_params(
+    scope_name <- build_deterministic_scope_name(list(
       station_uuid = station_uuid,
       start_timestamp = as.integer(start_timestamp),
       end_timestamp = as.integer(end_timestamp),
-      sensor_types = paste(
-        sort(if (is.null(sensor_types)) numeric(0) else sensor_types),
-        collapse = ","
+      sensor_types = sort(
+        if (is.null(sensor_types)) numeric(0) else sensor_types
       )
-    )
+    ))
+
+    table_name <- paste0("weather__historical_davis__", scope_name)
 
     write_weather_to_db(
       data = weather_data,
       con = con,
       tool_name = "historical_davis",
-      param_hash = param_hash,
+      table_name = table_name,
       table_label = table_label,
-      add_data_view = add_data_view
+      add_data_view = add_data_view,
+      source_detail = paste0(
+        "tool=get_weather_historical_davis; scope=",
+        scope_name
+      )
     )
   },
   name = "get_weather_historical_davis",
@@ -559,15 +661,12 @@ get_yield_historical_nass <- tool(
       )
     }
 
-    param_hash <- hash_tool_params(
-      crops = paste(
-        sort(if (is.null(crops)) character(0) else crops),
-        collapse = ","
-      ),
-      statistics = paste(sort(statistics), collapse = ","),
+    scope_name <- build_deterministic_scope_name(list(
+      crops = sort(if (is.null(crops)) character(0) else crops),
+      statistics = sort(statistics),
       year_min = year_min,
       year_max = year_max
-    )
+    ))
 
     raw_data <- get_columbia_county_nass_raw(
       crops = crops,
@@ -582,9 +681,13 @@ get_yield_historical_nass <- tool(
       raw_data = raw_data,
       trend_data = trend_data,
       con = con,
-      param_hash = param_hash,
+      table_scope = scope_name,
       table_label = table_label,
-      add_data_view = add_data_view
+      add_data_view = add_data_view,
+      source_detail = paste0(
+        "tool=get_yield_historical_nass; scope=",
+        scope_name
+      )
     )
   },
   name = "get_yield_historical_nass",

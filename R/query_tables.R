@@ -171,6 +171,72 @@ assert_free_sql_tables_exist <- function(con, sql) {
     return(invisible(TRUE))
   }
 
+  all_tables <- DBI::dbListTables(con)
+
+  find_similar_tables <- function(missing_name, candidates) {
+    if (length(candidates) == 0) {
+      return(character())
+    }
+
+    # First pass: drop overly-specific variable suffixes often hallucinated.
+    base_without_vars <- sub("__variables_.*$", "", missing_name)
+    direct <- candidates[startsWith(candidates, base_without_vars)]
+    if (length(direct) > 0) {
+      return(utils::head(unique(direct), 3))
+    }
+
+    # Second pass: match by stable family prefix (e.g. weather__forecast_open_meteo).
+    parts <- strsplit(missing_name, "__", fixed = TRUE)[[1]]
+    if (length(parts) >= 2) {
+      family_prefix <- paste(
+        parts[seq_len(min(2, length(parts)))],
+        collapse = "__"
+      )
+      family_hits <- candidates[startsWith(candidates, family_prefix)]
+      if (length(family_hits) > 0) {
+        return(utils::head(unique(family_hits), 3))
+      }
+    }
+
+    character()
+  }
+
+  similar_map <- lapply(missing, find_similar_tables, candidates = all_tables)
+  names(similar_map) <- missing
+
+  similar_lines <- vapply(
+    names(similar_map),
+    function(tbl) {
+      hits <- similar_map[[tbl]]
+      if (length(hits) == 0) {
+        return(NA_character_)
+      }
+
+      paste0("likely match for ", tbl, ": ", paste(hits, collapse = ", "))
+    },
+    character(1)
+  )
+  similar_lines <- stats::na.omit(similar_lines)
+
+  similar_hint <- if (length(similar_lines) > 0) {
+    paste0(
+      " Likely existing table names: ",
+      paste(similar_lines, collapse = "; "),
+      "."
+    )
+  } else {
+    ""
+  }
+
+  usda_missing <- missing[grepl("^usda_yields_(raw|trend)_", missing)]
+  usda_hint <- ""
+  if (length(usda_missing) > 0) {
+    usda_hint <- paste(
+      " USDA yield tables are named deterministically by request scope.",
+      " Call get_yield_historical_nass and use the exact table_name values returned by that tool."
+    )
+  }
+
   recent <- get_recent_table_suggestions(con, n = 3)
   recent_txt <- if (length(recent) > 0) {
     paste0(
@@ -187,6 +253,8 @@ assert_free_sql_tables_exist <- function(con, sql) {
       "Referenced table(s) not found: ",
       paste(unique(missing), collapse = ", "),
       ".",
+      usda_hint,
+      similar_hint,
       recent_txt,
       " Call get_data_table_metadata before query_tables to confirm names."
     ),
@@ -289,6 +357,33 @@ normalize_result_rows <- function(df, max_rows = 200L) {
     rows_returned = as.integer(rows_returned),
     rows_total = as.integer(rows_total),
     result_truncated = truncated
+  )
+}
+
+assert_output_tables_do_not_exist <- function(con, table_names) {
+  if (is.null(table_names) || length(table_names) == 0) {
+    return(invisible(NULL))
+  }
+
+  existing <- table_names[
+    vapply(
+      table_names,
+      function(tbl) DBI::dbExistsTable(con, tbl),
+      logical(1)
+    )
+  ]
+
+  if (length(existing) == 0) {
+    return(invisible(NULL))
+  }
+
+  stop(
+    paste0(
+      "cannot replace existing tables: ",
+      paste(unique(existing), collapse = ", "),
+      "."
+    ),
+    call. = FALSE
   )
 }
 
@@ -425,6 +520,8 @@ run_query_tables <- function(
     )
 
     if (persist) {
+      assert_output_tables_do_not_exist(con, output_table_names)
+
       purrr::walk2(
         queries,
         output_table_labels,
@@ -569,6 +666,7 @@ run_query_tables <- function(
     if (persist) {
       output_table_name <- output_table_names[[1]]
       output_table_label <- output_table_labels[[1]]
+      assert_output_tables_do_not_exist(con, output_table_name)
       quoted_output <- as.character(DBI::dbQuoteIdentifier(
         con,
         output_table_name
