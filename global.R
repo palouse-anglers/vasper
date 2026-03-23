@@ -3,8 +3,9 @@
 
 # UI Framework ----
 library(shiny)
-library(bslib)
 library(shinyWidgets)
+library(bslib)
+library(brand.yml)
 
 # AI & Chat ----
 library(ellmer)
