@@ -22,6 +22,11 @@ ui <- page_fillable(
   padding = 0,
 
   tags$head(
+    tags$link(
+      rel = "icon",
+      type = "image/svg+xml",
+      href = "icons/vasper-logo.svg"
+    ),
     tags$link(rel = "stylesheet", href = "css/app.css"),
     tags$style(HTML(sprintf(
       "
