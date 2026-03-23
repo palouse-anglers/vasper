@@ -29,7 +29,6 @@ color:
   success: vasper-green
   warning: harvest-orange
   danger: danger-red
-  accent: accent-teal
   light: light-gray
   dark: neutral-fg
 

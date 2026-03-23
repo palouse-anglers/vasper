@@ -49,7 +49,7 @@ options(bslib.color_contrast_warnings = FALSE)
 app_theme <- bs_theme(
   version = 5,
   preset = "shiny",
-  brand = TRUE,
+  brand = "_brand.yml",
   font_scale = 0.9
 )
 

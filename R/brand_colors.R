@@ -35,7 +35,7 @@ BRAND_COLORS <- list(
   background = .resolve_brand_color("background"),
   light = .resolve_brand_color("light"),
   dark = .resolve_brand_color("dark"),
-  accent = .resolve_brand_color("accent"),
+  accent = .resolve_brand_color("accent") %||% .brand_palette[["accent-teal"]],
   usda_nass_navy = .brand_palette[["weatherlink-navy"]]
 )
 
