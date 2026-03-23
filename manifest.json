@@ -6271,7 +6271,7 @@
       "checksum": "4f830959e127e26648e3f2edf1463a3f"
     },
     "app.R": {
-      "checksum": "d23c6c47fa21e2995c5e2e99e6d26cf0"
+      "checksum": "e94342d327b17e6234468a0ae9650606"
     },
     "data-raw/create_logo.R": {
       "checksum": "715d7420016d0e8555cd09860aab719c"
@@ -6304,7 +6304,7 @@
       "checksum": "9113a3f5337071f8e8f1d465884dd9e5"
     },
     "R/chat_helpers.R": {
-      "checksum": "0b658cf4f77d307528497e357aabffda"
+      "checksum": "0a6793d8f709da2887f2cc92b87a983f"
     },
     "R/data_page_manager.R": {
       "checksum": "b7bfc74aeb5cdca78f1102d53cfb9e1c"
@@ -6403,7 +6403,7 @@
       "checksum": "eaf4496f90d6b19a411effa19696f622"
     },
     "tests/test_chat_helpers.R": {
-      "checksum": "39bef48ab33be385fb6547d47688485e"
+      "checksum": "c7690daa3857e8d27e2c8acc31e500f9"
     },
     "tests/test_davis_api.R": {
       "checksum": "439757981ae08a7a4396f99314a6b027"
@@ -6424,7 +6424,7 @@
       "checksum": "8028a6b3f9a07a4ed68968ac165b8c7c"
     },
     "www/css/app.css": {
-      "checksum": "96da3e7cf56a8dd8303bcf2629625322"
+      "checksum": "a0f6938b5fa953e5db997f6af034322e"
     },
     "www/icons/open-meteo-favicon.ico": {
       "checksum": "ff2b686e7efd3ce80ce58ac85f75140b"

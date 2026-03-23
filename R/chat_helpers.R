@@ -189,6 +189,79 @@ parse_tool_result_data_view <- function(result) {
   )
 }
 
+parse_tool_result_plot_artifact <- function(result) {
+  result <- unwrap_tool_result(result)
+
+  empty <- list(
+    has_plot = FALSE,
+    png_path = NA_character_,
+    artifact_id = NA_character_,
+    artifact_label = NA_character_
+  )
+
+  if (!is.list(result)) {
+    return(empty)
+  }
+
+  files <- result$files %||% NULL
+  png_path <- if (is.list(files)) {
+    sanitize_chat_text_scalar(as.character(files$png %||% NA_character_)[[1]])
+  } else {
+    NA_character_
+  }
+
+  if (is.na(png_path)) {
+    return(empty)
+  }
+
+  artifact_type <- tolower(trimws(as.character(
+    result$artifact_type %||% ""
+  )[[1]]))
+
+  if (nzchar(artifact_type) && !identical(artifact_type, "plot")) {
+    return(empty)
+  }
+
+  list(
+    has_plot = TRUE,
+    png_path = png_path,
+    artifact_id = sanitize_chat_text_scalar(as.character(
+      result$artifact_id %||% NA_character_
+    )[[1]]),
+    artifact_label = sanitize_chat_text_scalar(as.character(
+      result$artifact_label %||% NA_character_
+    )[[1]])
+  )
+}
+
+extract_turn_tool_results <- function(turn) {
+  contents <- tryCatch(turn@contents, error = function(e) list())
+  if (!is.list(contents) || length(contents) == 0) {
+    return(list())
+  }
+
+  tool_results <- list()
+
+  for (content in contents) {
+    value <- tryCatch(content@value, error = function(e) NULL)
+
+    if (is.null(value) && is.list(content) && !is.null(content$value)) {
+      value <- content$value
+    }
+
+    if (is.null(value)) {
+      next
+    }
+
+    unwrapped <- unwrap_tool_result(value)
+    if (is.list(unwrapped)) {
+      tool_results <- c(tool_results, list(unwrapped))
+    }
+  }
+
+  tool_results
+}
+
 get_turn_text <- function(turn) {
   text_parts <- extract_turn_text_parts(turn)
   if (length(text_parts) == 0) {

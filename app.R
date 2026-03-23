@@ -4,6 +4,10 @@ if (!("reports-images" %in% names(shiny::resourcePaths()))) {
   shiny::addResourcePath("reports-images", "reports/images")
 }
 
+if (!("artifact-plots" %in% names(shiny::resourcePaths()))) {
+  shiny::addResourcePath("artifact-plots", get_plot_artifact_base_dir("plots"))
+}
+
 acknowledgements_banner <- tags$div(
   class = "app-acknowledgements",
   htmltools::HTML(paste0(
@@ -112,6 +116,12 @@ ui <- page_fillable(
 
 # Server ----
 server <- function(input, output, session) {
+  artifact_plot_dir <- normalizePath(
+    get_plot_artifact_base_dir("plots"),
+    winslash = "/",
+    mustWork = FALSE
+  )
+
   # Data page modules refresh off this nonce whenever chat/tools modify DB.
   data_refresh_nonce <- reactiveVal(0)
 
@@ -217,6 +227,7 @@ server <- function(input, output, session) {
   )
 
   pending_data_views <- reactiveVal(character())
+  pending_plot_messages <- reactiveVal(character())
 
   queue_data_views <- function(table_names) {
     table_names <- normalize_table_names(table_names)
@@ -229,6 +240,114 @@ server <- function(input, output, session) {
     invisible(NULL)
   }
 
+  queue_plot_message <- function(message) {
+    message <- sanitize_chat_text_scalar(message)
+
+    if (is.na(message)) {
+      return(invisible(NULL))
+    }
+
+    pending_plot_messages(c(isolate(pending_plot_messages()), message))
+    invisible(NULL)
+  }
+
+  to_artifact_plot_url <- function(png_path) {
+    png_path <- sanitize_chat_text_scalar(png_path)
+    if (is.na(png_path)) {
+      return(NA_character_)
+    }
+
+    normalized_path <- normalizePath(
+      png_path,
+      winslash = "/",
+      mustWork = FALSE
+    )
+
+    if (!file.exists(normalized_path)) {
+      return(NA_character_)
+    }
+
+    relative <- if (startsWith(normalized_path, artifact_plot_dir)) {
+      sub(
+        "^/+",
+        "",
+        substr(
+          normalized_path,
+          nchar(artifact_plot_dir) + 1,
+          nchar(normalized_path)
+        )
+      )
+    } else {
+      basename(normalized_path)
+    }
+
+    parts <- strsplit(relative, "/", fixed = TRUE)[[1]]
+    encoded <- paste(
+      vapply(parts, utils::URLencode, character(1), reserved = TRUE),
+      collapse = "/"
+    )
+
+    modified <- as.numeric(file.info(normalized_path)$mtime)
+    paste0("artifact-plots/", encoded, "?t=", as.integer(modified))
+  }
+
+  build_plot_chat_message <- function(result) {
+    parsed <- parse_tool_result_plot_artifact(result)
+
+    if (!parsed$has_plot) {
+      return(NA_character_)
+    }
+
+    plot_url <- to_artifact_plot_url(parsed$png_path)
+    if (is.na(plot_url)) {
+      return(NA_character_)
+    }
+
+    label <- sanitize_chat_text_scalar(parsed$artifact_label)
+    if (is.na(label)) {
+      label <- sanitize_chat_text_scalar(parsed$artifact_id)
+    }
+    if (is.na(label)) {
+      label <- "Generated plot"
+    }
+
+    paste0(
+      "**",
+      label,
+      "**\n\n",
+      "![",
+      label,
+      "](",
+      plot_url,
+      ")"
+    )
+  }
+
+  collect_plot_messages_from_turns <- function(turns) {
+    if (!is.list(turns) || length(turns) == 0) {
+      return(character())
+    }
+
+    messages <- character()
+
+    for (turn in turns) {
+      tool_results <- extract_turn_tool_results(turn)
+
+      if (length(tool_results) == 0) {
+        next
+      }
+
+      for (result in tool_results) {
+        message <- build_plot_chat_message(result)
+        if (!is.na(message)) {
+          messages <- c(messages, message)
+        }
+      }
+    }
+
+    messages
+  }
+
   # Auto-open Data views when tools return add_data_view = TRUE.
   handle_tool_result <- function(result) {
     parsed <- parse_tool_result_data_view(result)
@@ -238,6 +357,17 @@ server <- function(input, output, session) {
     }
 
     queue_data_views(parsed$table_names)
+    invisible(NULL)
+  }
+
+  handle_tool_plot_result <- function(result) {
+    message <- build_plot_chat_message(result)
+
+    if (is.na(message)) {
+      return(invisible(NULL))
+    }
+
+    queue_plot_message(message)
     invisible(NULL)
   }
 
@@ -293,6 +423,17 @@ server <- function(input, output, session) {
     }
 
     render_chat_turns(turns, chat_id = "main_chat")
+
+    replay_plot_messages <- collect_plot_messages_from_turns(turns)
+    if (length(replay_plot_messages) > 0) {
+      for (message in replay_plot_messages) {
+        chat_append(
+          "main_chat",
+          list(role = "assistant", content = message)
+        )
+      }
+    }
+
     invisible(NULL)
   }
 
@@ -312,6 +453,7 @@ server <- function(input, output, session) {
 
     chat_client$on_tool_result(function(result) {
       handle_tool_result(result)
+      handle_tool_plot_result(result)
     })
 
     list(
@@ -718,6 +860,39 @@ server <- function(input, output, session) {
 
     invalidateLater(250, session)
     flush_data_view_queue()
+    invisible(NULL)
+  })
+
+  observe({
+    messages <- pending_plot_messages()
+
+    if (length(messages) == 0) {
+      return(invisible(NULL))
+    }
+
+    if (isTRUE(is_chat_streaming())) {
+      invalidateLater(250, session)
+      return(invisible(NULL))
+    }
+
+    pending_plot_messages(character())
+
+    for (message in messages) {
+      tryCatch(
+        chat_append(
+          "main_chat",
+          list(role = "assistant", content = message)
+        ),
+        error = function(e) {
+          showNotification(
+            paste0("Unable to append plot preview: ", conditionMessage(e)),
+            type = "warning",
+            duration = 3
+          )
+        }
+      )
+    }
+
     invisible(NULL)
   })
 
