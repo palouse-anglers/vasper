@@ -1,5 +1,7 @@
 Vasper the friendly VSP reporting tool
 
+![Vasper logo](www/icons/vasper-logo.svg)
+
 ## Registered tools (ellmer)
 
 The app registers the following tools in [global.R](global.R):
