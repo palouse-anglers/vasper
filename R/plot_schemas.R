@@ -6,7 +6,7 @@
 #
 # Templates assume:
 #   - `data` is the input data.frame
-#   - BRAND_COLORS and MAP_PALETTE_CATEGORICAL are available
+#   - BRAND_COLORS and palette helpers (`scale_*_vasper_discrete`) are available
 #   - ggplot2, dplyr, tidyr, scales, forcats, ggridges, patchwork are loaded
 
 # -- Parameter specification helpers ------------------------------------------
@@ -144,8 +144,9 @@ p <- p + {{geom_layer}}
 if (is.numeric(data[["{{color}}"]])) {
   p <- p + scale_colour_gradientn(colours = MAP_PALETTE_GREEN)
 } else {
-  p <- p + scale_colour_manual(values = MAP_PALETTE_CATEGORICAL) +
-           scale_fill_manual(values = MAP_PALETTE_CATEGORICAL)
+  p <- p +
+    scale_colour_vasper_discrete(x = data[["{{color}}"]]) +
+    scale_fill_vasper_discrete(x = data[["{{color}}"]])
 }
 {{/color}}
 
@@ -195,8 +196,8 @@ p <- ggplot(data, mapping) +
 
 if (use_color) {
   p <- p +
-    scale_colour_manual(values = MAP_PALETTE_CATEGORICAL) +
-    scale_fill_manual(values = MAP_PALETTE_CATEGORICAL)
+    scale_colour_vasper_discrete(x = data[[color_col]]) +
+    scale_fill_vasper_discrete(x = data[[color_col]])
 }
 
 p + theme_minimal() +
@@ -247,8 +248,8 @@ p <- ggplot(data, mapping) +
 
 if (use_color) {
   p <- p +
-    scale_colour_manual(values = MAP_PALETTE_CATEGORICAL) +
-    scale_fill_manual(values = MAP_PALETTE_CATEGORICAL)
+    scale_colour_vasper_discrete(x = data[[color_col]]) +
+    scale_fill_vasper_discrete(x = data[[color_col]])
 }
 
 p + theme_minimal() +
@@ -320,7 +321,7 @@ if (use_threshold) {
 }
 
 if (use_color) {
-  p <- p + scale_colour_manual(values = MAP_PALETTE_CATEGORICAL)
+  p <- p + scale_colour_vasper_discrete(x = data[[color_col]])
 }
 
 p + coord_flip() +
@@ -367,7 +368,7 @@ long <- data |>
 p <- ggplot(long, aes(x = .data[["{{x}}"]], y = value,
                        fill = metric)) +
   geom_col(position = "dodge", alpha = 0.85) +
-  scale_fill_manual(values = MAP_PALETTE_CATEGORICAL)
+  scale_fill_vasper_discrete(x = long$metric)
 
 facet_col <- "{{facet}}"
 if (nzchar(facet_col)) {
@@ -416,7 +417,7 @@ p_main <- ggplot(data, scatter_mapping) +
 
 if (use_color) {
   p_main <- p_main +
-    scale_colour_manual(values = MAP_PALETTE_CATEGORICAL)
+    scale_colour_vasper_discrete(x = data[[color_col]])
 }
 
 # marginal density - top (x)
@@ -458,7 +459,7 @@ PLOT_SCHEMAS[["stacked_proportion_bar"]] <- plot_schema(
 p <- ggplot(data, aes(x = .data[["{{x}}"]], fill = .data[["{{fill}}"]])) +
   geom_bar(position = "fill", alpha = 0.85) +
   scale_y_continuous(labels = scales::percent) +
-  scale_fill_manual(values = MAP_PALETTE_CATEGORICAL)
+  scale_fill_vasper_discrete(x = data[["{{fill}}"]])
 
 facet_col <- "{{facet}}"
 if (nzchar(facet_col)) {
@@ -495,8 +496,7 @@ p <- ggplot(data, aes(x = .data[["{{x}}"]], y = as.factor(.data[["{{y}}"]]),
                        fill = as.factor(.data[["{{y}}"]]))) +
   ggridges::geom_density_ridges(alpha = 0.55, scale = 1.3,
                                  colour = BRAND_COLORS$dark) +
-  scale_fill_manual(values = rep(MAP_PALETTE_CATEGORICAL,
-                                  length.out = length(unique(data[["{{y}}"]])))) +
+  scale_fill_vasper_discrete(x = as.factor(data[["{{y}}"]])) +
   theme_minimal() +
   theme(
     plot.title    = element_text(face = "bold"),

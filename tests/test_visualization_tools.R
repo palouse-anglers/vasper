@@ -219,7 +219,7 @@ describe("build_code_from_schema conditional block handling", {
         color = "field_name"
       )
     )
-    expect_true(grepl("scale_colour_manual", code, fixed = TRUE))
+    expect_true(grepl("scale_colour_vasper_discrete", code, fixed = TRUE))
   })
 
   test_that("basic schema omits color block when color absent", {
@@ -228,7 +228,7 @@ describe("build_code_from_schema conditional block handling", {
       s,
       list(x = "producer_id", y = "organic_matter", geom = "point")
     )
-    expect_false(grepl("scale_colour_manual", code, fixed = TRUE))
+    expect_false(grepl("scale_colour_vasper_discrete", code, fixed = TRUE))
   })
 
   test_that("title and subtitle are appended via labs()", {

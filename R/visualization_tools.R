@@ -394,7 +394,10 @@ run_plot_code_isolated <- function(
       subtitle,
       brand_colors,
       map_palette_green,
-      map_palette_categorical
+      map_palette_categorical,
+      plot_palette_categorical,
+      plot_palette_continuous,
+      plot_color_na
     ) {
       suppressPackageStartupMessages({
         library(ggplot2)
@@ -423,6 +426,58 @@ run_plot_code_isolated <- function(
       eval_env$BRAND_COLORS <- brand_colors
       eval_env$MAP_PALETTE_GREEN <- map_palette_green
       eval_env$MAP_PALETTE_CATEGORICAL <- map_palette_categorical
+      eval_env$PLOT_PALETTE_CATEGORICAL <- plot_palette_categorical
+      eval_env$PLOT_PALETTE_CONTINUOUS <- plot_palette_continuous
+      eval_env$PLOT_COLOR_NA <- plot_color_na
+
+      plot_palette_discrete <- function(x = NULL, n = NULL) {
+        if (is.null(n)) {
+          n <- if (is.null(x)) {
+            length(plot_palette_categorical)
+          } else {
+            length(unique(as.character(stats::na.omit(x))))
+          }
+        }
+
+        n <- as.integer(n)
+        if (is.na(n) || n <= 0) {
+          return(character())
+        }
+
+        if (n <= length(plot_palette_categorical)) {
+          palette <- plot_palette_categorical[seq_len(n)]
+        } else {
+          palette <- grDevices::colorRampPalette(plot_palette_categorical)(n)
+        }
+
+        if (!is.null(x)) {
+          keys <- unique(as.character(stats::na.omit(x)))
+          keys <- sort(keys)
+          names(palette) <- keys
+        }
+
+        palette
+      }
+
+      scale_colour_vasper_discrete <- function(x = NULL, n = NULL, ...) {
+        ggplot2::scale_colour_manual(
+          values = plot_palette_discrete(x = x, n = n),
+          na.value = plot_color_na,
+          ...
+        )
+      }
+
+      scale_fill_vasper_discrete <- function(x = NULL, n = NULL, ...) {
+        ggplot2::scale_fill_manual(
+          values = plot_palette_discrete(x = x, n = n),
+          na.value = plot_color_na,
+          ...
+        )
+      }
+
+      eval_env$plot_palette_discrete <- plot_palette_discrete
+      eval_env$scale_colour_vasper_discrete <- scale_colour_vasper_discrete
+      eval_env$scale_fill_vasper_discrete <- scale_fill_vasper_discrete
 
       eval_env$tables <- table_data_list
       for (nm in names(table_data_list)) {
@@ -492,7 +547,10 @@ run_plot_code_isolated <- function(
       subtitle = subtitle,
       brand_colors = BRAND_COLORS,
       map_palette_green = MAP_PALETTE_GREEN,
-      map_palette_categorical = MAP_PALETTE_CATEGORICAL
+      map_palette_categorical = MAP_PALETTE_CATEGORICAL,
+      plot_palette_categorical = PLOT_PALETTE_CATEGORICAL,
+      plot_palette_continuous = PLOT_PALETTE_CONTINUOUS,
+      plot_color_na = PLOT_COLOR_NA
     )
   )
 }
