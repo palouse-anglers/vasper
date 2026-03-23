@@ -6321,8 +6321,11 @@
     "R/navigation_module.R": {
       "checksum": "3ee1740b74f40a3989f727136692fa5c"
     },
+    "R/plot_helpers.R": {
+      "checksum": "05b9844205bd0e68af21dc6dfd60496c"
+    },
     "R/plot_schemas.R": {
-      "checksum": "29ff9d14e345b63d532d00075e6c30d2"
+      "checksum": "2be1030c3ee81416713c25cedc81a93f"
     },
     "R/prompt_profiles.R": {
       "checksum": "30aff51b60aaeafb70ba13441319e037"
@@ -6349,7 +6352,7 @@
       "checksum": "78d04556cc30d33da28b2e7988cb104c"
     },
     "R/visualization_tools.R": {
-      "checksum": "dbd3bb3438fcbcc05a5fdf3508146b26"
+      "checksum": "beb94e8510bfe138bed1d9820cf55014"
     },
     "R/weather_api.R": {
       "checksum": "c32dbdcdf0a56bf8848ef9474366b30e"
@@ -6418,7 +6421,7 @@
       "checksum": "9d56ab8eff846a4fcde17bee4d46356d"
     },
     "tests/test_visualization_tools.R": {
-      "checksum": "10b035a6b22cbfdcfbdc1ed544083b23"
+      "checksum": "1e02f17b6a22f1c7a5c85284ef3bb2de"
     },
     "tests/test_weather_api.R": {
       "checksum": "8028a6b3f9a07a4ed68968ac165b8c7c"
