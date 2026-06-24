@@ -6,7 +6,8 @@ download_icon_assets <- function(force = FALSE) {
     "reports_soils_logo" , "https://wa-department-of-agriculture.github.io/soils/logo.png" , "www/icons/soils-logo.png"         ,
     "open_meteo_favicon" , "https://open-meteo.com/favicon.ico"                            , "www/icons/open-meteo-favicon.ico" ,
     "weatherlink_logo"   , "https://avatars.githubusercontent.com/u/50184229?s=200&v=4"    , "www/icons/weatherlink-logo.png"   ,
-    "usda_nass_logo"     , "https://www.nass.usda.gov/images/masthead/nass_logo_bw-1.png"  , "www/icons/usda-nass-logo.png"
+    "usda_nass_logo"     , "https://www.nass.usda.gov/images/masthead/nass_logo_bw-1.png"  , "www/icons/usda-nass-logo.png"     ,
+    "wsu_awn_logo"       , "https://weather.wsu.edu/wsu-logo.svg"                          , "www/icons/wsu-logo.svg"
   )
 
   download_one <- function(asset_key, asset_url, dest_rel_path) {

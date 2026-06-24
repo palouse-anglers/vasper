@@ -49,6 +49,10 @@ For recent condition checks, prefer this sequence:
 - get_weather_current_davis (for one station_uuid)
 - get_weather_historical_davis (short bounded windows)
 
+For local Columbia County station interval data, use:
+- get_weather_stations_wsu
+- get_weather_historical_wsu (one station_id, date range up to 92 days; native 15-minute data, aggregate via query_tables)
+
 For historical climate checks, use get_weather_historical_open_meteo with explicit date ranges.
 For forecast checks, use get_weather_forecast_open_meteo with bounded n_days.
 For crop history checks, use get_yield_historical_nass with explicit crops/statistics/year range.

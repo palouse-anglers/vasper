@@ -14,6 +14,7 @@ acknowledgements_banner <- tags$div(
     "<span>Acknowledgements:</span> Data services and tooling include ",
     "<a href='https://open-meteo.com/' target='_blank' rel='noopener noreferrer'>Open-Meteo</a>, ",
     "<a href='https://weatherlink.github.io/v2-api/' target='_blank' rel='noopener noreferrer'>Davis WeatherLink</a>, ",
+    "<a href='https://weather.wsu.edu/' target='_blank' rel='noopener noreferrer'>WSU AgWeatherNet</a>, ",
     "<a href='https://quickstats.nass.usda.gov/api' target='_blank' rel='noopener noreferrer'>USDA NASS Quick Stats API</a>, and the ",
     "<a href='https://wa-department-of-agriculture.github.io/soils/' target='_blank' rel='noopener noreferrer'>{soils} R package</a>.",
     "<br/>This product uses the NASS API but is not endorsed or certified by NASS."

@@ -688,6 +688,122 @@ tool_get_weather_historical_davis <- tool(
   )
 )
 
+# Tool: List WSU AgWeatherNet stations
+tool_get_weather_stations_wsu <- tool(
+  function(
+    table_label,
+    add_data_view = TRUE
+  ) {
+    stations <- get_weather_stations_wsu()
+
+    table_name <- "weather__stations_wsu__scope_all"
+
+    write_weather_to_db(
+      data = stations,
+      con = con,
+      tool_name = "stations_wsu",
+      table_name = table_name,
+      table_label = table_label,
+      add_data_view = add_data_view,
+      source_detail = "tool=get_weather_stations_wsu; scope=target_stations"
+    )
+  },
+  name = "get_weather_stations_wsu",
+  description = paste(
+    "Get WSU AgWeatherNet station metadata for the three granted Columbia County, WA",
+    "stations (Hogeye 100326, Jackson 100328, Alto 100329).",
+    "Use this first to obtain a station_id, then call get_weather_historical_wsu.",
+    "Writes results to DuckDB and returns table metadata."
+  ),
+  arguments = list(
+    table_label = type_string(
+      "Required user-facing label for the output table in the Data page"
+    ),
+    add_data_view = type_boolean(
+      "Whether to add this table as an open Data view (default TRUE)",
+      required = FALSE
+    )
+  ),
+  annotations = tool_annotations(
+    title = "WSU AgWeatherNet Stations",
+    icon = tool_icon_image("icons/wsu-logo.svg", "WSU AgWeatherNet")
+  )
+)
+
+# Tool: Get historical WSU AgWeatherNet interval data
+tool_get_weather_historical_wsu <- tool(
+  function(
+    station_id,
+    date_range,
+    resolution = "15MIN",
+    table_label,
+    add_data_view = TRUE
+  ) {
+    weather_data <- get_weather_historical_wsu(
+      station_id = station_id,
+      date_range = date_range,
+      resolution = resolution
+    )
+
+    scope_name <- build_deterministic_scope_name(list(
+      station_id = as.integer(station_id),
+      start = as.character(date_range[1]),
+      end = as.character(date_range[2]),
+      resolution = toupper(as.character(resolution))
+    ))
+
+    table_name <- paste0("weather__historical_wsu__", scope_name)
+
+    write_weather_to_db(
+      data = weather_data,
+      con = con,
+      tool_name = "historical_wsu",
+      table_name = table_name,
+      table_label = table_label,
+      add_data_view = add_data_view,
+      source_detail = paste0(
+        "tool=get_weather_historical_wsu; scope=",
+        scope_name
+      )
+    )
+  },
+  name = "get_weather_historical_wsu",
+  description = paste(
+    "Get historical WSU AgWeatherNet weather records for one explicit Columbia County",
+    "station_id and a date range. Returns native 15-minute interval data (these meter2",
+    "stations do not server-side aggregate; HOURLY/DAILY/MONTHLY are not reliably honored).",
+    "For hourly, daily, or monthly summaries, aggregate the resulting table with query_tables SQL.",
+    "Date range is limited to 92 days per call (the endpoint is slow for wide ranges); make",
+    "repeated calls for longer history, or use get_weather_historical_open_meteo for multi-year ranges.",
+    "If you do not already have a station_id, call get_weather_stations_wsu first.",
+    "Writes results to DuckDB and returns table metadata."
+  ),
+  arguments = list(
+    station_id = type_number(
+      "Required WSU AgWeatherNet station id (for example 100326). Call get_weather_stations_wsu first if needed."
+    ),
+    date_range = type_array(
+      type_string(),
+      "Array of two values [start, end] as YYYY-MM-DD (or 'YYYY-MM-DD HH:MM:SS'). Max 92 days per call."
+    ),
+    resolution = type_string(
+      "Requested resolution (default '15MIN'). Granted meter2 stations serve native 15-minute data regardless; aggregate via query_tables SQL.",
+      required = FALSE
+    ),
+    table_label = type_string(
+      "Required user-facing label for the output table in the Data page"
+    ),
+    add_data_view = type_boolean(
+      "Whether to add this table as an open Data view (default TRUE)",
+      required = FALSE
+    )
+  ),
+  annotations = tool_annotations(
+    title = "WSU AgWeatherNet Historical Weather",
+    icon = tool_icon_image("icons/wsu-logo.svg", "WSU AgWeatherNet")
+  )
+)
+
 # Tool: Get USDA NASS historical crop yield data
 get_yield_historical_nass <- tool(
   function(
@@ -1176,6 +1292,8 @@ CHAT_TOOLS <- list(
   get_weather_stations_davis = tool_get_weather_stations_davis,
   get_weather_current_davis = tool_get_weather_current_davis,
   get_weather_historical_davis = tool_get_weather_historical_davis,
+  get_weather_stations_wsu = tool_get_weather_stations_wsu,
+  get_weather_historical_wsu = tool_get_weather_historical_wsu,
   get_yield_historical_nass = get_yield_historical_nass,
   query_tables = query_tables,
   get_table_profile = tool_get_table_profile,
