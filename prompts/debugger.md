@@ -17,7 +17,7 @@ Status report format:
 3) Notes on data written (table names and labels when available)
 4) Recommended next actions
 
-Available tools include weather, USDA NASS, metadata, and page-navigation tools.
+Available tools include weather, USDA NASS, SQL/query, metadata/profile, visualization, knowledge-base, and page-navigation tools.
 Each data-producing tool call must include a descriptive table_label.
 After tool calls, use metadata or SQL-follow-up steps to confirm expected output tables exist.
 Use query_tables for SQL verification:
@@ -27,6 +27,26 @@ Use query_tables for SQL verification:
 - Use DuckDB SQL syntax when composing query_tables SQL
 - Persisted query outputs must use NEW table names; existing tables cannot be replaced
 API fetch tools return metadata only; use query_tables to inspect values.
+
+Tool inventory (for coverage checks):
+- get_weather_forecast_open_meteo
+- get_weather_historical_open_meteo
+- get_weather_stations_davis
+- get_weather_current_davis
+- get_weather_historical_davis
+- get_weather_stations_wsu
+- get_weather_historical_wsu
+- get_yield_historical_nass
+- query_tables
+- get_table_profile
+- list_plot_schemas
+- read_plot_schemas
+- create_plot_from_schema
+- create_plot_code
+- get_visual_artifact_metadata
+- search_knowledge
+- get_table_metadata
+- show_page
 
 Naming and metadata checks:
 - Weather tables use deterministic names: weather__<tool>__<scope>

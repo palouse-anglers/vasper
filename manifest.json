@@ -6521,10 +6521,10 @@
       "checksum": "04cb3f32f807411dae6023c73476b3d1"
     },
     "prompts/debugger.md": {
-      "checksum": "c612ee6c43f453877b75493e4cf27edb"
+      "checksum": "6f617fb7c3070a98b6ed99849ae1b2e0"
     },
     "prompts/prompt.md": {
-      "checksum": "ea34ecb24402bf483f3fd71fa3c7a06d"
+      "checksum": "647a786a1ea37b4608dde2497f2ff9ac"
     },
     "R/app_config.R": {
       "checksum": "7aadf9f524837ade21dd08fa23748729"
@@ -6593,7 +6593,7 @@
       "checksum": "0683bc2cb1570826eccea94b5f5a0b87"
     },
     "README.md": {
-      "checksum": "b594e9d5e9b36a87ca1ed558f215845c"
+      "checksum": "e20923394589da1d0e75b23cf09944e6"
     },
     "reports/01_producer-report.qmd": {
       "checksum": "ea51f20ddb3ba6027904b2d0f39110d9"
