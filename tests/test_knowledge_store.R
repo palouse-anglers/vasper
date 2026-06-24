@@ -108,3 +108,68 @@ describe("connect_knowledge_store", {
     expect_null(store)
   })
 })
+
+describe("knowledge retrieval regressions", {
+  test_that("planting-window queries return planting-related context", {
+    skip_if_not(file.exists(KNOWLEDGE_STORE_PATH))
+
+    store <- connect_knowledge_store()
+    skip_if(
+      is.null(store),
+      "Knowledge store unavailable for retrieval regression test"
+    )
+    on.exit(disconnect_knowledge_store(store), add = TRUE)
+
+    out <- tolower(run_search_knowledge(
+      store,
+      "What are recommended planting windows for major crops in Washington?",
+      top_k = 12
+    ))
+
+    expect_false(grepl("no strong matches found", out, fixed = TRUE))
+    expect_true(grepl("planting|seeding|planting date|window", out))
+  })
+
+  test_that("crop-suitability queries return soil-condition context", {
+    skip_if_not(file.exists(KNOWLEDGE_STORE_PATH))
+
+    store <- connect_knowledge_store()
+    skip_if(
+      is.null(store),
+      "Knowledge store unavailable for retrieval regression test"
+    )
+    on.exit(disconnect_knowledge_store(store), add = TRUE)
+
+    out <- tolower(run_search_knowledge(
+      store,
+      "Which crops are suitable for different soil conditions in Washington?",
+      top_k = 12
+    ))
+
+    expect_false(grepl("no strong matches found", out, fixed = TRUE))
+    expect_true(grepl("suitable|crop|soil ph|texture|drainage|adapt", out))
+  })
+
+  test_that("soil-management queries return management-practice context", {
+    skip_if_not(file.exists(KNOWLEDGE_STORE_PATH))
+
+    store <- connect_knowledge_store()
+    skip_if(
+      is.null(store),
+      "Knowledge store unavailable for retrieval regression test"
+    )
+    on.exit(disconnect_knowledge_store(store), add = TRUE)
+
+    out <- tolower(run_search_knowledge(
+      store,
+      "What soil management practices are recommended for Washington crop systems?",
+      top_k = 12
+    ))
+
+    expect_false(grepl("no strong matches found", out, fixed = TRUE))
+    expect_true(grepl(
+      "management|tillage|cover crop|nitrogen|compaction|lime",
+      out
+    ))
+  })
+})
