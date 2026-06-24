@@ -137,6 +137,40 @@
         "Archs": "x64"
       }
     },
+    "Matrix": {
+      "Source": "CRAN",
+      "Repository": "https://cran.rstudio.com",
+      "description": {
+        "Package": "Matrix",
+        "Version": "1.7-4",
+        "VersionNote": "do also bump src/version.h, inst/include/Matrix/version.h",
+        "Date": "2025-08-27",
+        "Priority": "recommended",
+        "Title": "Sparse and Dense Matrix Classes and Methods",
+        "Description": "A rich hierarchy of sparse and dense matrix classes,\n\tincluding general, symmetric, triangular, and diagonal matrices\n\twith numeric, logical, or pattern entries.  Efficient methods for\n\toperating on such matrices, often wrapping the 'BLAS', 'LAPACK',\n\tand 'SuiteSparse' libraries.",
+        "License": "GPL (>= 2) | file LICENCE",
+        "URL": "https://Matrix.R-forge.R-project.org",
+        "BugReports": "https://R-forge.R-project.org/tracker/?atid=294&group_id=61",
+        "Contact": "Matrix-authors@R-project.org",
+        "Authors@R": "\n\tc(person(\"Douglas\", \"Bates\", role = \"aut\",\n\t         comment = c(ORCID = \"0000-0001-8316-9503\")),\n\t  person(\"Martin\", \"Maechler\", role = c(\"aut\", \"cre\"),\n\t         email = \"mmaechler+Matrix@gmail.com\",\n\t         comment = c(ORCID = \"0000-0002-8685-9910\")),\n\t  person(\"Mikael\", \"Jagan\", role = \"aut\",\n\t         comment = c(ORCID = \"0000-0002-3542-2938\")),\n\t  person(\"Timothy A.\", \"Davis\", role = \"ctb\",\n\t         comment = c(ORCID = \"0000-0001-7614-6899\",\n\t                     \"SuiteSparse libraries\",\n\t                     \"collaborators listed in dir(system.file(\\\"doc\\\", \\\"SuiteSparse\\\", package=\\\"Matrix\\\"), pattern=\\\"License\\\", full.names=TRUE, recursive=TRUE)\")),\n\t  person(\"George\", \"Karypis\", role = \"ctb\",\n\t         comment = c(ORCID = \"0000-0003-2753-1437\",\n\t                     \"METIS library\",\n\t                     \"Copyright: Regents of the University of Minnesota\")),\n\t  person(\"Jason\", \"Riedy\", role = \"ctb\",\n\t         comment = c(ORCID = \"0000-0002-4345-4200\",\n\t                     \"GNU Octave's condest() and onenormest()\",\n\t                     \"Copyright: Regents of the University of California\")),\n\t  person(\"Jens\", \"Oehlschlägel\", role = \"ctb\",\n\t         comment = \"initial nearPD()\"),\n\t  person(\"R Core Team\", role = \"ctb\",\n\t         comment = c(ROR = \"02zz1nj61\", \"base R's matrix implementation\")))",
+        "Depends": "R (>= 4.4), methods",
+        "Imports": "grDevices, graphics, grid, lattice, stats, utils",
+        "Suggests": "MASS, datasets, sfsmisc, tools",
+        "Enhances": "SparseM, graph",
+        "LazyData": "no",
+        "LazyDataNote": "not possible, since we use data/*.R and our S4 classes",
+        "BuildResaveData": "no",
+        "Encoding": "UTF-8",
+        "NeedsCompilation": "yes",
+        "Packaged": "2025-08-27 10:17:11 UTC; maechler",
+        "Author": "Douglas Bates [aut] (ORCID: <https://orcid.org/0000-0001-8316-9503>),\n  Martin Maechler [aut, cre] (ORCID:\n    <https://orcid.org/0000-0002-8685-9910>),\n  Mikael Jagan [aut] (ORCID: <https://orcid.org/0000-0002-3542-2938>),\n  Timothy A. Davis [ctb] (ORCID: <https://orcid.org/0000-0001-7614-6899>,\n    SuiteSparse libraries, collaborators listed in\n    dir(system.file(\"doc\", \"SuiteSparse\", package=\"Matrix\"),\n    pattern=\"License\", full.names=TRUE, recursive=TRUE)),\n  George Karypis [ctb] (ORCID: <https://orcid.org/0000-0003-2753-1437>,\n    METIS library, Copyright: Regents of the University of Minnesota),\n  Jason Riedy [ctb] (ORCID: <https://orcid.org/0000-0002-4345-4200>, GNU\n    Octave's condest() and onenormest(), Copyright: Regents of the\n    University of California),\n  Jens Oehlschlägel [ctb] (initial nearPD()),\n  R Core Team [ctb] (ROR: <https://ror.org/02zz1nj61>, base R's matrix\n    implementation)",
+        "Maintainer": "Martin Maechler <mmaechler+Matrix@gmail.com>",
+        "Repository": "CRAN",
+        "Date/Publication": "2025-08-28 11:50:02 UTC",
+        "Built": "R 4.5.3; x86_64-w64-mingw32; 2026-03-11 08:46:43 UTC; windows",
+        "Archs": "x64"
+      }
+    },
     "R6": {
       "Source": "CRAN",
       "Repository": "https://cran.rstudio.com",
@@ -272,6 +306,41 @@
         "RemoteRepos": "https://cran.rstudio.com/",
         "RemotePkgPlatform": "x86_64-w64-mingw32",
         "RemoteSha": "1.1.1"
+      }
+    },
+    "RcppTOML": {
+      "Source": "CRAN",
+      "Repository": "https://cran.rstudio.com",
+      "description": {
+        "Package": "RcppTOML",
+        "Type": "Package",
+        "Title": "'Rcpp' Bindings to Parser for \"Tom's Obvious Markup Language\"",
+        "Version": "0.2.3",
+        "Date": "2025-03-08",
+        "Authors@R": "c(person(\"Dirk\", \"Eddelbuettel\", role = c(\"aut\", \"cre\"), email = \"edd@debian.org\",\n                    comment = c(ORCID = \"0000-0001-6419-907X\")),\n             person(\"Mark\", \"Gillard\", role = \"aut\",\n                    comment = \"Author of 'toml++' header library\"))",
+        "Description": "The configuration format defined by 'TOML' (which expands to\n \"Tom's Obvious Markup Language\") specifies an excellent format\n (described at <https://toml.io/en/>) suitable for both human editing\n as well as the common uses of a machine-readable format. This package\n uses 'Rcpp' to connect to the 'toml++' parser written by Mark Gillard\n to R.",
+        "SystemRequirements": "A C++17 compiler",
+        "BugReports": "https://github.com/eddelbuettel/rcpptoml/issues",
+        "URL": "http://dirk.eddelbuettel.com/code/rcpp.toml.html",
+        "Imports": "Rcpp (>= 1.0.8)",
+        "Depends": "R (>= 3.3.0)",
+        "LinkingTo": "Rcpp",
+        "Suggests": "tinytest",
+        "License": "GPL (>= 2)",
+        "NeedsCompilation": "yes",
+        "Packaged": "2025-03-08 13:54:57 UTC; edd",
+        "Author": "Dirk Eddelbuettel [aut, cre] (<https://orcid.org/0000-0001-6419-907X>),\n  Mark Gillard [aut] (Author of 'toml++' header library)",
+        "Maintainer": "Dirk Eddelbuettel <edd@debian.org>",
+        "Repository": "CRAN",
+        "Date/Publication": "2025-03-08 14:30:06 UTC",
+        "Built": "R 4.5.3; x86_64-w64-mingw32; 2026-03-18 03:53:02 UTC; windows",
+        "Archs": "x64",
+        "RemoteType": "standard",
+        "RemotePkgRef": "RcppTOML",
+        "RemoteRef": "RcppTOML",
+        "RemoteRepos": "https://cran.rstudio.com/",
+        "RemotePkgPlatform": "x86_64-w64-mingw32",
+        "RemoteSha": "0.2.3"
       }
     },
     "S7": {
@@ -3578,6 +3647,45 @@
         "RemoteSha": "0.13"
       }
     },
+    "mirai": {
+      "Source": "CRAN",
+      "Repository": "https://cran.rstudio.com",
+      "description": {
+        "Type": "Package",
+        "Package": "mirai",
+        "Title": "Minimalist Async Evaluation Framework for R",
+        "Version": "2.7.1",
+        "Authors@R": "c(\n    person(\"Charlie\", \"Gao\", , \"charlie.gao@posit.co\", role = c(\"aut\", \"cre\"),\n           comment = c(ORCID = \"0000-0002-0750-061X\")),\n    person(\"Joe\", \"Cheng\", , \"joe@posit.co\", role = \"ctb\"),\n    person(\"Posit Software, PBC\", role = c(\"cph\", \"fnd\"),\n           comment = c(ROR = \"03wc8by49\")),\n    person(\"Hibiki AI Limited\", role = \"cph\")\n  )",
+        "Description": "Evaluates R expressions asynchronously and in parallel,\n    locally or distributed across networks. An official parallel cluster\n    type for R. Built on 'nanonext' and 'NNG', its non-polling,\n    event-driven architecture scales from a laptop to thousands of\n    processes across high-performance computing clusters and cloud\n    platforms. Features FIFO scheduling with task cancellation and bounded\n    queues, promises for reactive programming, 'OpenTelemetry' distributed\n    tracing, and custom serialization for cross-language data types.",
+        "License": "MIT + file LICENSE",
+        "URL": "https://mirai.r-lib.org, https://github.com/r-lib/mirai",
+        "BugReports": "https://github.com/r-lib/mirai/issues",
+        "Depends": "R (>= 3.6)",
+        "Imports": "nanonext (>= 1.9.0)",
+        "Suggests": "cli, later, litedown, mori, otel, otelsdk, secretbase",
+        "Enhances": "parallel, promises",
+        "VignetteBuilder": "litedown",
+        "Config/Needs/coverage": "rlang",
+        "Config/Needs/website": "tidyverse/tidytemplate",
+        "Config/roxygen2/markdown": "TRUE",
+        "Config/roxygen2/version": "8.0.0",
+        "Config/usethis/last-upkeep": "2025-04-23",
+        "Encoding": "UTF-8",
+        "NeedsCompilation": "no",
+        "Packaged": "2026-06-01 11:11:45 UTC; shikokuchuo",
+        "Author": "Charlie Gao [aut, cre] (ORCID: <https://orcid.org/0000-0002-0750-061X>),\n  Joe Cheng [ctb],\n  Posit Software, PBC [cph, fnd] (ROR: <https://ror.org/03wc8by49>),\n  Hibiki AI Limited [cph]",
+        "Maintainer": "Charlie Gao <charlie.gao@posit.co>",
+        "Repository": "CRAN",
+        "Date/Publication": "2026-06-01 12:00:02 UTC",
+        "Built": "R 4.5.3; ; 2026-06-22 03:06:46 UTC; windows",
+        "RemoteType": "standard",
+        "RemotePkgRef": "mirai",
+        "RemoteRef": "mirai",
+        "RemoteRepos": "https://cran.rstudio.com/",
+        "RemotePkgPlatform": "i386+x86_64-w64-mingw32",
+        "RemoteSha": "2.7.1"
+      }
+    },
     "modelr": {
       "Source": "CRAN",
       "Repository": "https://cran.rstudio.com",
@@ -3611,6 +3719,47 @@
         "RemoteRepos": "https://cran.rstudio.com/",
         "RemotePkgPlatform": "i386+x86_64-w64-mingw32",
         "RemoteSha": "0.1.11"
+      }
+    },
+    "nanonext": {
+      "Source": "CRAN",
+      "Repository": "https://cran.rstudio.com",
+      "description": {
+        "Type": "Package",
+        "Package": "nanonext",
+        "Title": "Lightweight Toolkit for Messaging, Concurrency and the Web",
+        "Version": "1.9.1",
+        "Authors@R": "c(\n    person(\"Charlie\", \"Gao\", , \"charlie.gao@posit.co\", role = c(\"aut\", \"cre\"),\n           comment = c(ORCID = \"0000-0002-0750-061X\")),\n    person(\"Posit Software, PBC\", role = c(\"cph\", \"fnd\"),\n           comment = c(ROR = \"03wc8by49\")),\n    person(\"Hibiki AI Limited\", role = \"cph\"),\n    person(\"Staysail Systems, Inc.\", role = \"cph\",\n           comment = \"NNG library\"),\n    person(\"Capitar IT Group BV\", role = \"cph\",\n           comment = \"NNG library\"),\n    person(\"The Mbed TLS Contributors\", role = \"cph\",\n           comment = \"Mbed TLS library\"),\n    person(\"Pierre\", \"L'Ecuyer\", role = \"cph\",\n           comment = \"RngStreams library\"),\n    person(\"sakura authors\", role = \"cph\",\n           comment = \"Serialization hooks\"),\n    person(\"R Consortium\", role = \"fnd\",\n           comment = c(ROR = \"01z833950\"))\n  )",
+        "Description": "R binding for NNG (Nanomsg Next Gen), a successor to ZeroMQ.\n    A toolkit for messaging, concurrency and the web. High-performance\n    socket messaging over in-process, IPC, TCP, WebSocket and secure TLS\n    transports implements 'Scalability Protocols', a standard for common\n    communications patterns including publish/subscribe, request/reply and\n    survey. A threaded concurrency framework with intuitive 'aio' objects\n    that resolve automatically upon completion of asynchronous operations,\n    and synchronisation primitives that allow R to wait on events\n    signalled by concurrent threads. A unified HTTP server hosting REST\n    endpoints, WebSocket connections and streaming on a single port, with\n    a built-in HTTP client.",
+        "License": "MIT + file LICENSE",
+        "URL": "https://nanonext.r-lib.org, https://github.com/r-lib/nanonext",
+        "BugReports": "https://github.com/r-lib/nanonext/issues",
+        "Depends": "R (>= 3.6)",
+        "Suggests": "later, litedown",
+        "Enhances": "promises",
+        "VignetteBuilder": "litedown",
+        "Biarch": "true",
+        "Config/build/compilation-database": "true",
+        "Config/Needs/website": "tidyverse/tidytemplate",
+        "Config/roxygen2/markdown": "TRUE",
+        "Config/roxygen2/version": "8.0.0",
+        "Config/usethis/last-upkeep": "2025-04-23",
+        "Encoding": "UTF-8",
+        "SystemRequirements": "'libnng' >= 1.11 and 'libmbedtls' >= 2.5, or\n'cmake' to compile NNG and/or Mbed TLS included in package\nsources",
+        "NeedsCompilation": "yes",
+        "Packaged": "2026-06-01 02:08:34 UTC; shikokuchuo",
+        "Author": "Charlie Gao [aut, cre] (ORCID: <https://orcid.org/0000-0002-0750-061X>),\n  Posit Software, PBC [cph, fnd] (ROR: <https://ror.org/03wc8by49>),\n  Hibiki AI Limited [cph],\n  Staysail Systems, Inc. [cph] (NNG library),\n  Capitar IT Group BV [cph] (NNG library),\n  The Mbed TLS Contributors [cph] (Mbed TLS library),\n  Pierre L'Ecuyer [cph] (RngStreams library),\n  sakura authors [cph] (Serialization hooks),\n  R Consortium [fnd] (ROR: <https://ror.org/01z833950>)",
+        "Maintainer": "Charlie Gao <charlie.gao@posit.co>",
+        "Repository": "CRAN",
+        "Date/Publication": "2026-06-01 06:10:02 UTC",
+        "Built": "R 4.5.3; x86_64-w64-mingw32; 2026-06-22 02:08:15 UTC; windows",
+        "Archs": "x64",
+        "RemoteType": "standard",
+        "RemotePkgRef": "nanonext",
+        "RemoteRef": "nanonext",
+        "RemoteRepos": "https://cran.rstudio.com/",
+        "RemotePkgPlatform": "x86_64-w64-mingw32",
+        "RemoteSha": "1.9.1"
       }
     },
     "officer": {
@@ -4301,6 +4450,42 @@
         "RemoteSha": "1.5.1"
       }
     },
+    "ragnar": {
+      "Source": "CRAN",
+      "Repository": "https://cran.rstudio.com",
+      "description": {
+        "Package": "ragnar",
+        "Title": "Retrieval-Augmented Generation (RAG) Workflows",
+        "Version": "0.3.0",
+        "Authors@R": "c(\n    person(\"Tomasz\", \"Kalinowski\", , \"tomasz@posit.co\", role = c(\"aut\", \"cre\")),\n    person(\"Daniel\", \"Falbel\", , \"daniel@posit.co\", role = \"aut\"),\n    person(\"Posit Software, PBC\", role = c(\"cph\", \"fnd\"),\n           comment = c(ROR = \"03wc8by49\"))\n  )",
+        "Description": "Provides tools for implementing Retrieval-Augmented\n    Generation (RAG) workflows with Large Language Models (LLM). Includes\n    functions for document processing, text chunking, embedding\n    generation, storage management, and content retrieval. Supports\n    various document types and embedding providers ('Ollama', 'OpenAI'),\n    with 'DuckDB' as the default storage backend. Integrates with the\n    'ellmer' package to equip chat objects with retrieval capabilities.\n    Designed to offer both sensible defaults and customization options\n    with transparent access to intermediate outputs.  For a review of\n    retrieval-augmented generation methods, see Gao et al. (2023)\n    \"Retrieval-Augmented Generation for Large Language Models: A Survey\"\n    <doi:10.48550/arXiv.2312.10997>.",
+        "License": "MIT + file LICENSE",
+        "URL": "https://ragnar.tidyverse.org/, https://github.com/tidyverse/ragnar",
+        "BugReports": "https://github.com/tidyverse/ragnar/issues",
+        "Depends": "R (>= 4.3.0)",
+        "Imports": "blob, cli, commonmark, curl, DBI, mirai (>= 2.5.1), dbplyr,\ndplyr, duckdb (>= 1.3.1), glue, httr2, jsonlite, methods,\nreticulate (>= 1.42.0), rlang (>= 1.1.0), rvest, S7, stringi,\ntidyr, vctrs, withr, xml2",
+        "Suggests": "connectcreds, ellmer (>= 0.3.0), gargle, knitr, lifecycle,\nmcptools (>= 0.2.0), pandoc, paws.common, rmarkdown, shiny,\nstringr, testthat (>= 3.0.0), tibble, jose, openssl",
+        "VignetteBuilder": "knitr",
+        "Config/Needs/website": "tidyverse/tidytemplate, rmarkdown",
+        "Config/testthat/edition": "3",
+        "Encoding": "UTF-8",
+        "RoxygenNote": "7.3.3",
+        "NeedsCompilation": "yes",
+        "Packaged": "2026-01-23 17:32:04 UTC; tomasz",
+        "Author": "Tomasz Kalinowski [aut, cre],\n  Daniel Falbel [aut],\n  Posit Software, PBC [cph, fnd] (ROR: <https://ror.org/03wc8by49>)",
+        "Maintainer": "Tomasz Kalinowski <tomasz@posit.co>",
+        "Repository": "CRAN",
+        "Date/Publication": "2026-01-23 19:40:08 UTC",
+        "Built": "R 4.5.3; x86_64-w64-mingw32; 2026-06-22 05:44:54 UTC; windows",
+        "Archs": "x64",
+        "RemoteType": "standard",
+        "RemotePkgRef": "ragnar",
+        "RemoteRef": "ragnar",
+        "RemoteRepos": "https://cran.rstudio.com/",
+        "RemotePkgPlatform": "x86_64-w64-mingw32",
+        "RemoteSha": "0.3.0"
+      }
+    },
     "rappdirs": {
       "Source": "CRAN",
       "Repository": "https://cran.rstudio.com",
@@ -4548,6 +4733,44 @@
         "RemoteRepos": "https://cran.rstudio.com/",
         "RemotePkgPlatform": "i386+x86_64-w64-mingw32",
         "RemoteSha": "2.1.1"
+      }
+    },
+    "reticulate": {
+      "Source": "CRAN",
+      "Repository": "https://cran.rstudio.com",
+      "description": {
+        "Package": "reticulate",
+        "Type": "Package",
+        "Title": "Interface to 'Python'",
+        "Version": "1.46.0",
+        "Authors@R": "c(\n  person(\"Tomasz\", \"Kalinowski\", role = c(\"ctb\", \"cre\"),\n         email = \"tomasz@posit.co\"),\n  person(\"Kevin\", \"Ushey\", role = c(\"aut\"),\n         email = \"kevin@posit.co\"),\n  person(\"JJ\", \"Allaire\", role = c(\"aut\"), email = \"jj@posit.co\"),\n  person(\"RStudio\", role = c(\"cph\", \"fnd\")),\n  person(\"Yuan\", \"Tang\", role = c(\"aut\", \"cph\"),\n         email = \"terrytangyuan@gmail.com\",\n         comment = c(ORCID = \"0000-0001-5243-233X\")),\n  person(\"Dirk\", \"Eddelbuettel\", role = c(\"ctb\", \"cph\"),\n         email = \"edd@debian.org\"),\n  person(\"Bryan\", \"Lewis\", role = c(\"ctb\", \"cph\"),\n         email = \"blewis@illposed.net\"),\n  person(\"Sigrid\", \"Keydana\", role = c(\"ctb\"),\n         email = \"sigrid@posit.co\"),\n  person(\"Ryan\", \"Hafen\", role = c(\"ctb\", \"cph\"),\n         email = \"rhafen@gmail.com\"),\n  person(\"Marcus\", \"Geelnard\", role = c(\"ctb\", \"cph\"),\n         comment = \"TinyThread library, http://tinythreadpp.bitsnbites.eu/\")\n  )",
+        "Description": "Interface to 'Python' modules, classes, and functions. When calling\n    into 'Python', R data types are automatically converted to their equivalent 'Python'\n    types. When values are returned from 'Python' to R they are converted back to R\n    types. Compatible with all versions of 'Python' >= 2.7.",
+        "License": "Apache License 2.0",
+        "URL": "https://rstudio.github.io/reticulate/,\nhttps://github.com/rstudio/reticulate",
+        "BugReports": "https://github.com/rstudio/reticulate/issues",
+        "SystemRequirements": "Python (>= 2.7.0)",
+        "Encoding": "UTF-8",
+        "Depends": "R (>= 3.5)",
+        "Imports": "Matrix, Rcpp (>= 1.0.7), RcppTOML, graphics, here, jsonlite,\nmethods, png, rappdirs, utils, rlang, withr",
+        "Suggests": "callr, knitr, glue, cli, rmarkdown, pillar, testthat",
+        "LinkingTo": "Rcpp",
+        "RoxygenNote": "7.3.3",
+        "VignetteBuilder": "knitr",
+        "Config/build/compilation-database": "true",
+        "NeedsCompilation": "yes",
+        "Packaged": "2026-04-08 00:00:29 UTC; tomasz",
+        "Author": "Tomasz Kalinowski [ctb, cre],\n  Kevin Ushey [aut],\n  JJ Allaire [aut],\n  RStudio [cph, fnd],\n  Yuan Tang [aut, cph] (ORCID: <https://orcid.org/0000-0001-5243-233X>),\n  Dirk Eddelbuettel [ctb, cph],\n  Bryan Lewis [ctb, cph],\n  Sigrid Keydana [ctb],\n  Ryan Hafen [ctb, cph],\n  Marcus Geelnard [ctb, cph] (TinyThread library,\n    http://tinythreadpp.bitsnbites.eu/)",
+        "Maintainer": "Tomasz Kalinowski <tomasz@posit.co>",
+        "Repository": "CRAN",
+        "Date/Publication": "2026-04-09 11:50:02 UTC",
+        "Built": "R 4.5.3; x86_64-w64-mingw32; 2026-06-22 03:20:51 UTC; windows",
+        "Archs": "x64",
+        "RemoteType": "standard",
+        "RemotePkgRef": "reticulate",
+        "RemoteRef": "reticulate",
+        "RemoteRepos": "https://cran.rstudio.com/",
+        "RemotePkgPlatform": "x86_64-w64-mingw32",
+        "RemoteSha": "1.46.0"
       }
     },
     "rlang": {
@@ -6262,22 +6485,25 @@
   },
   "files": {
     ".Renviron": {
-      "checksum": "51a7dfec639b8088c741a2cde7ce17b3"
+      "checksum": "fc0b86ba470f2aaba43f10310fe8d119"
     },
     ".Renviron.template": {
-      "checksum": "3fddbf5ef95f9feacc80d23d8ec1c8db"
+      "checksum": "5be40e1ecb50cf6a3ca96d36b18e3dd6"
     },
     "_brand.yml": {
       "checksum": "4f830959e127e26648e3f2edf1463a3f"
     },
     "app.R": {
-      "checksum": "e94342d327b17e6234468a0ae9650606"
+      "checksum": "e1eed0d15697cf86eca5325682627dc4"
+    },
+    "data-raw/build_knowledge_store.R": {
+      "checksum": "aefbcf79fc9787538f7c2e04cd27295d"
     },
     "data-raw/create_logo.R": {
       "checksum": "715d7420016d0e8555cd09860aab719c"
     },
     "data-raw/download_app_icons.R": {
-      "checksum": "6dc2392756a2768f8202de0e0b821144"
+      "checksum": "03ea6e10abce35639346bdea872875ef"
     },
     "data-raw/reformat_soil_data.R": {
       "checksum": "b14ac6e3b4f37328bb5898506f3f594f"
@@ -6285,17 +6511,20 @@
     "data/data_dictionary.csv": {
       "checksum": "056938de8ff846a4547d5cf9fc5ef1e4"
     },
+    "data/knowledge_store.duckdb": {
+      "checksum": "693fdc3b17332f62eefc108db0c262ce"
+    },
     "data/soil_data.csv": {
       "checksum": "3aa158757681d263cdf87c4f820e8e5d"
     },
     "global.R": {
-      "checksum": "525c52ea650f2c72b218ad3f3aab9843"
+      "checksum": "04cb3f32f807411dae6023c73476b3d1"
     },
     "prompts/debugger.md": {
-      "checksum": "647332462aebe64da93ce24d35f06d63"
+      "checksum": "c612ee6c43f453877b75493e4cf27edb"
     },
     "prompts/prompt.md": {
-      "checksum": "6f6e0a5a9ef792b0206a2d52efa02fa0"
+      "checksum": "ea34ecb24402bf483f3fd71fa3c7a06d"
     },
     "R/app_config.R": {
       "checksum": "7aadf9f524837ade21dd08fa23748729"
@@ -6314,6 +6543,9 @@
     },
     "R/davis_api.R": {
       "checksum": "a2ff0912c0b96a6188f476c45b9c7886"
+    },
+    "R/knowledge_store.R": {
+      "checksum": "d1ec3c92777cf7e21fedccbd668a37c1"
     },
     "R/map_helpers.R": {
       "checksum": "5ffbade335891bcd03de69c0391dada4"
@@ -6357,8 +6589,11 @@
     "R/weather_api.R": {
       "checksum": "c32dbdcdf0a56bf8848ef9474366b30e"
     },
+    "R/wsu_awn_api.R": {
+      "checksum": "0683bc2cb1570826eccea94b5f5a0b87"
+    },
     "README.md": {
-      "checksum": "be4e3d09c092dd29e97defd93ae5423a"
+      "checksum": "b594e9d5e9b36a87ca1ed558f215845c"
     },
     "reports/01_producer-report.qmd": {
       "checksum": "ea51f20ddb3ba6027904b2d0f39110d9"
@@ -6411,6 +6646,9 @@
     "tests/test_davis_api.R": {
       "checksum": "439757981ae08a7a4396f99314a6b027"
     },
+    "tests/test_knowledge_store.R": {
+      "checksum": "674801b632c42529d795dfa672bd1af2"
+    },
     "tests/test_query_tables.R": {
       "checksum": "6f0167ca7079706346764968a4d3b53e"
     },
@@ -6425,6 +6663,9 @@
     },
     "tests/test_weather_api.R": {
       "checksum": "8028a6b3f9a07a4ed68968ac165b8c7c"
+    },
+    "tests/test_wsu_awn_api.R": {
+      "checksum": "706c6fc34a91a40a19cc1ba89fa524b2"
     },
     "www/css/app.css": {
       "checksum": "a0f6938b5fa953e5db997f6af034322e"
@@ -6443,6 +6684,9 @@
     },
     "www/icons/weatherlink-logo.png": {
       "checksum": "4020b08253da77ce99a2382c82884d1a"
+    },
+    "www/icons/wsu-logo.svg": {
+      "checksum": "99139db9e01006f316e095d7d9db043a"
     },
     "www/js/navigation.js": {
       "checksum": "bc2f0cec19c5108d38176e84378a90ed"

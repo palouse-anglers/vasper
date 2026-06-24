@@ -18,6 +18,9 @@ library(duckdb)
 library(lubridate)
 library(digest)
 
+# Knowledge base (RAG) ----
+library(ragnar)
+
 # APIs ----
 library(httr2)
 library(jsonlite)
@@ -1286,6 +1289,45 @@ tool_get_visual_artifact_metadata <- tool(
 prompt_config <- resolve_prompt_manifest(file.path("prompts", "manifest.json"))
 default_prompt_id <- prompt_config$default_prompt_id
 
+# Knowledge base (RAG) connection and retrieval tool ----
+# Read-only connection to the pre-built ragnar store (see R/knowledge_store.R and
+# data-raw/build_knowledge_store.R). NULL when the store file is absent.
+knowledge_store <- connect_knowledge_store()
+
+search_knowledge <- tool(
+  function(query, top_k = KNOWLEDGE_TOP_K) {
+    run_search_knowledge(
+      store = knowledge_store,
+      query = query,
+      top_k = as.integer(top_k)
+    )
+  },
+  name = "search_knowledge",
+  description = paste(
+    "Search the curated Washington soil-health knowledge base (State of the",
+    "Soils reports and WSU Extension soil-science publications) for background",
+    "reference material. Use this before answering conceptual or",
+    "best-practice questions about soil health, management practices, or",
+    "interpreting soil measurements. Returns the most relevant passages, each",
+    "labelled with its source URL. Cite the source when you use a passage.",
+    "This tool reads reference documents only; it does not access the user's",
+    "own soil data (use query_tables / get_table_profile for that)."
+  ),
+  arguments = list(
+    query = type_string(
+      "Natural-language search query describing the information you need."
+    ),
+    top_k = type_number(
+      "Number of passages to retrieve (default 6, capped at 12).",
+      required = FALSE
+    )
+  ),
+  annotations = tool_annotations(
+    title = "Search Knowledge Base",
+    icon = icon("book-open")
+  )
+)
+
 CHAT_TOOLS <- list(
   get_weather_forecast_open_meteo = get_weather_forecast_open_meteo,
   get_weather_historical_open_meteo = get_weather_historical_open_meteo,
@@ -1301,7 +1343,8 @@ CHAT_TOOLS <- list(
   read_plot_schemas = read_plot_schemas,
   create_plot_from_schema = create_plot_from_schema,
   create_plot_code = create_plot_code,
-  get_visual_artifact_metadata = tool_get_visual_artifact_metadata
+  get_visual_artifact_metadata = tool_get_visual_artifact_metadata,
+  search_knowledge = search_knowledge
 )
 
 # Detect available LLM provider based on environment variables
@@ -1344,5 +1387,6 @@ app_pages <- APP_PAGES
 
 # Cleanup on app stop ----
 onStop(function() {
+  disconnect_knowledge_store(knowledge_store)
   dbDisconnect(con, shutdown = TRUE)
 })
