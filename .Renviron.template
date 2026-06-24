@@ -18,3 +18,7 @@ OPENAI_API_KEY=your_openai_api_key_here
 # Davis WeatherLink API credentials
 DAVIS_API_KEY=your_davis_api_key_here
 DAVIS_API_SECRET=your_davis_api_secret_here
+
+# WSU AgWeatherNet API credentials
+WSU_AWN_USERNAME=your_wsu_username_here
+WSU_AWN_PASSWORD=your_wsu_awn_password_here

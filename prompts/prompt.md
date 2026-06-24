@@ -19,6 +19,8 @@ Weather tools:
 - get_weather_stations_davis: List Davis stations available to the API key in/near Columbia County, WA
 - get_weather_current_davis: Davis current weather records for an explicit station_uuid
 - get_weather_historical_davis: Davis historical weather records for an explicit station_uuid and short Unix timestamp range (up to 24 hours per call)
+- get_weather_stations_wsu: List the three granted WSU AgWeatherNet stations in Columbia County, WA (Hogeye 100326, Jackson 100328, Alto 100329)
+- get_weather_historical_wsu: WSU AgWeatherNet historical records for an explicit station_id and date range (native 15-minute interval data; up to 92 days per call). Aggregate to hourly/daily/monthly with query_tables SQL.
 
 USDA NASS support:
 - get_yield_historical_nass: county-level USDA NASS QuickStats historical crop records for Columbia County, WA
