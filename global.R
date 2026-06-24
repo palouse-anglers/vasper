@@ -1358,10 +1358,29 @@ chat_provider <- if (nzchar(Sys.getenv("ANTHROPIC_API_KEY"))) {
   )
 }
 
+append_runtime_date_context <- function(system_prompt) {
+  tz <- trimws(as.character(Sys.timezone() %||% ""))
+  if (!nzchar(tz)) {
+    tz <- "UTC"
+  }
+
+  current_date <- format(Sys.time(), "%A, %B %d, %Y", tz = tz)
+
+  runtime_context <- paste(
+    "Runtime context:",
+    paste0("- Today's date is ", current_date, "."),
+    paste0("- Time zone: ", tz, "."),
+    "- Interpret relative time phrases (for example, 'this spring', 'next week', 'last month') against today's date and this time zone unless the user specifies otherwise.",
+    sep = "\n"
+  )
+
+  paste(system_prompt, runtime_context, sep = "\n\n")
+}
+
 create_chat_client <- function(system_prompt) {
   chat(
     name = chat_provider,
-    system_prompt = system_prompt,
+    system_prompt = append_runtime_date_context(system_prompt),
     echo = "all"
   )
 }
