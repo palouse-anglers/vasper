@@ -11,3 +11,7 @@
 # soils package report output
 figure-output/
 01_producer-report_files/
+
+# DuckDB write-ahead log sidecars (never commit; checkpoint folds them into the .duckdb file)
+*.duckdb.wal
+*.duckdb.tmp/
