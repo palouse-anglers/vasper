@@ -4,6 +4,46 @@
   if (is.null(x)) y else x
 }
 
+normalize_artifact_session_scope <- function(x) {
+  value <- normalize_viz_scalar(x, default = NA_character_)
+
+  if (is.na(value)) {
+    return("global")
+  }
+
+  value <- tolower(value)
+  value <- gsub("[^a-z0-9_]+", "_", value)
+  value <- gsub("_+", "_", value)
+  value <- gsub("^_|_$", "", value)
+
+  if (!nzchar(value)) {
+    return("global")
+  }
+
+  value
+}
+
+get_artifact_session_scope <- function(session_scope = NULL) {
+  if (!is.null(session_scope)) {
+    return(normalize_artifact_session_scope(session_scope))
+  }
+
+  token <- NULL
+
+  if (requireNamespace("shiny", quietly = TRUE)) {
+    domain <- tryCatch(
+      shiny::getDefaultReactiveDomain(),
+      error = function(e) NULL
+    )
+
+    if (!is.null(domain)) {
+      token <- tryCatch(domain$token, error = function(e) NULL)
+    }
+  }
+
+  normalize_artifact_session_scope(token)
+}
+
 #' Ensure visualization artifact metadata registry exists
 #'
 #' @param con DBI connection
@@ -15,7 +55,8 @@ ensure_visual_artifact_metadata <- function(con) {
     con,
     "
     CREATE TABLE IF NOT EXISTS visual_artifact_metadata (
-      artifact_id VARCHAR PRIMARY KEY,
+      artifact_id VARCHAR NOT NULL,
+      session_scope VARCHAR NOT NULL DEFAULT 'global',
       artifact_type VARCHAR NOT NULL,
       table_name VARCHAR NOT NULL,
       table_label VARCHAR,
@@ -32,6 +73,133 @@ ensure_visual_artifact_metadata <- function(con) {
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
+    "
+  )
+
+  cols <- tryCatch(
+    DBI::dbGetQuery(con, "PRAGMA table_info('visual_artifact_metadata')"),
+    error = function(e) data.frame()
+  )
+
+  has_session_scope <- nrow(cols) > 0 && "session_scope" %in% cols$name
+  artifact_id_is_pk <- nrow(cols) > 0 &&
+    any(
+      cols$name == "artifact_id" & as.integer(cols$pk) == 1L
+    )
+
+  if (artifact_id_is_pk) {
+    select_session_scope <- if (has_session_scope) {
+      "COALESCE(NULLIF(TRIM(session_scope), ''), 'global')"
+    } else {
+      "'global'"
+    }
+
+    DBI::dbExecute(
+      con,
+      "
+      CREATE TABLE visual_artifact_metadata__migrated (
+        artifact_id VARCHAR NOT NULL,
+        session_scope VARCHAR NOT NULL DEFAULT 'global',
+        artifact_type VARCHAR NOT NULL,
+        table_name VARCHAR NOT NULL,
+        table_label VARCHAR,
+        artifact_label VARCHAR,
+        title VARCHAR,
+        subtitle VARCHAR,
+        description VARCHAR,
+        spec_json VARCHAR,
+        svg_path VARCHAR,
+        png_path VARCHAR,
+        source VARCHAR,
+        source_detail VARCHAR,
+        is_active INTEGER DEFAULT 1,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+      "
+    )
+
+    DBI::dbExecute(
+      con,
+      paste0(
+        "
+        INSERT INTO visual_artifact_metadata__migrated (
+          artifact_id,
+          session_scope,
+          artifact_type,
+          table_name,
+          table_label,
+          artifact_label,
+          title,
+          subtitle,
+          description,
+          spec_json,
+          svg_path,
+          png_path,
+          source,
+          source_detail,
+          is_active,
+          created_at,
+          updated_at
+        )
+        SELECT
+          artifact_id,
+          ",
+        select_session_scope,
+        ",
+          artifact_type,
+          table_name,
+          table_label,
+          artifact_label,
+          title,
+          subtitle,
+          description,
+          spec_json,
+          svg_path,
+          png_path,
+          source,
+          source_detail,
+          is_active,
+          created_at,
+          updated_at
+        FROM visual_artifact_metadata
+        "
+      )
+    )
+
+    DBI::dbExecute(con, "DROP TABLE visual_artifact_metadata")
+    DBI::dbExecute(
+      con,
+      "ALTER TABLE visual_artifact_metadata__migrated RENAME TO visual_artifact_metadata"
+    )
+
+    cols <- tryCatch(
+      DBI::dbGetQuery(con, "PRAGMA table_info('visual_artifact_metadata')"),
+      error = function(e) data.frame()
+    )
+    has_session_scope <- nrow(cols) > 0 && "session_scope" %in% cols$name
+  }
+
+  if (!has_session_scope) {
+    DBI::dbExecute(
+      con,
+      "ALTER TABLE visual_artifact_metadata ADD COLUMN session_scope VARCHAR"
+    )
+    DBI::dbExecute(
+      con,
+      "
+      UPDATE visual_artifact_metadata
+      SET session_scope = 'global'
+      WHERE session_scope IS NULL OR LENGTH(TRIM(session_scope)) = 0
+      "
+    )
+  }
+
+  DBI::dbExecute(
+    con,
+    "
+    CREATE INDEX IF NOT EXISTS idx_visual_artifact_metadata_scope
+    ON visual_artifact_metadata(session_scope)
     "
   )
 
@@ -360,11 +528,18 @@ get_plot_artifact_base_dir <- function(kind = "plot") {
   normalizePath(base_dir, winslash = "/", mustWork = FALSE)
 }
 
-build_plot_artifact_paths <- function(artifact_id, kind = "plot") {
+build_plot_artifact_paths <- function(
+  artifact_id,
+  kind = "plot",
+  session_scope = NULL
+) {
   base_dir <- get_plot_artifact_base_dir(kind)
+  scope <- get_artifact_session_scope(session_scope)
+  scoped_dir <- file.path(base_dir, scope)
+  dir.create(scoped_dir, recursive = TRUE, showWarnings = FALSE)
 
-  svg_path <- file.path(base_dir, paste0(artifact_id, ".svg"))
-  png_path <- file.path(base_dir, paste0(artifact_id, ".png"))
+  svg_path <- file.path(scoped_dir, paste0(artifact_id, ".svg"))
+  png_path <- file.path(scoped_dir, paste0(artifact_id, ".png"))
 
   list(svg_path = svg_path, png_path = png_path)
 }
@@ -560,6 +735,7 @@ run_plot_code_isolated <- function(
 upsert_visual_artifact_metadata <- function(
   con,
   artifact_id,
+  session_scope = NULL,
   artifact_type,
   table_name,
   table_label,
@@ -575,11 +751,12 @@ upsert_visual_artifact_metadata <- function(
   is_active = TRUE
 ) {
   ensure_visual_artifact_metadata(con)
+  session_scope <- get_artifact_session_scope(session_scope)
 
   DBI::dbExecute(
     con,
-    "DELETE FROM visual_artifact_metadata WHERE artifact_id = ?",
-    params = list(artifact_id)
+    "DELETE FROM visual_artifact_metadata WHERE artifact_id = ? AND session_scope = ?",
+    params = list(artifact_id, session_scope)
   )
 
   DBI::dbExecute(
@@ -587,6 +764,7 @@ upsert_visual_artifact_metadata <- function(
     "
     INSERT INTO visual_artifact_metadata (
       artifact_id,
+      session_scope,
       artifact_type,
       table_name,
       table_label,
@@ -603,10 +781,11 @@ upsert_visual_artifact_metadata <- function(
       created_at,
       updated_at
     )
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
     ",
     params = list(
       artifact_id,
+      session_scope,
       artifact_type,
       table_name,
       table_label,
@@ -748,7 +927,8 @@ run_create_plot_from_schema <- function(
   width = 9,
   height = 5,
   dpi = 180,
-  add_data_view = TRUE
+  add_data_view = TRUE,
+  session_scope = NULL
 ) {
   schema_name <- normalize_viz_scalar(schema_name)
   table_name <- normalize_viz_scalar(table_name)
@@ -846,6 +1026,7 @@ run_create_plot_from_schema <- function(
     artifact_name,
     default_prefix = "plot"
   )
+  artifact_session_scope <- get_artifact_session_scope(session_scope)
   artifact_label_val <- normalize_viz_scalar(
     artifact_label,
     default = artifact_id
@@ -869,7 +1050,11 @@ run_create_plot_from_schema <- function(
   # Load data and evaluate
   plot_df <- read_plot_code_table(con, table_name, limit_rows = 50000L)
 
-  files <- build_plot_artifact_paths(artifact_id = artifact_id, kind = "plots")
+  files <- build_plot_artifact_paths(
+    artifact_id = artifact_id,
+    kind = "plots",
+    session_scope = artifact_session_scope
+  )
 
   files <- tryCatch(
     run_plot_code_isolated(
@@ -911,6 +1096,7 @@ run_create_plot_from_schema <- function(
   upsert_visual_artifact_metadata(
     con = con,
     artifact_id = artifact_id,
+    session_scope = artifact_session_scope,
     artifact_type = "plot",
     table_name = table_name,
     table_label = table_name,
@@ -933,6 +1119,7 @@ run_create_plot_from_schema <- function(
 
   list(
     artifact_id = artifact_id,
+    session_scope = artifact_session_scope,
     artifact_type = "plot",
     artifact_label = artifact_label_val,
     table_name = TABLE_NAMES$visual_artifact_metadata,
@@ -1010,7 +1197,8 @@ run_create_plot_code <- function(
   height = 5,
   dpi = 180,
   limit_rows = 50000L,
-  add_data_view = TRUE
+  add_data_view = TRUE,
+  session_scope = NULL
 ) {
   plot_code <- normalize_viz_scalar(plot_code)
   table_names <- normalize_viz_table_names(table_names)
@@ -1071,6 +1259,7 @@ run_create_plot_code <- function(
     artifact_name,
     default_prefix = "plot"
   )
+  artifact_session_scope <- get_artifact_session_scope(session_scope)
   artifact_label <- normalize_viz_scalar(
     artifact_label,
     default = artifact_id
@@ -1113,7 +1302,11 @@ run_create_plot_code <- function(
   })
   names(table_data) <- table_names
 
-  files <- build_plot_artifact_paths(artifact_id = artifact_id, kind = "plots")
+  files <- build_plot_artifact_paths(
+    artifact_id = artifact_id,
+    kind = "plots",
+    session_scope = artifact_session_scope
+  )
 
   files <- tryCatch(
     run_plot_code_isolated(
@@ -1166,6 +1359,7 @@ run_create_plot_code <- function(
   upsert_visual_artifact_metadata(
     con = con,
     artifact_id = artifact_id,
+    session_scope = artifact_session_scope,
     artifact_type = "plot",
     table_name = source_table,
     table_label = source_label,
@@ -1188,6 +1382,7 @@ run_create_plot_code <- function(
 
   list(
     artifact_id = artifact_id,
+    session_scope = artifact_session_scope,
     artifact_type = "plot",
     artifact_label = artifact_label,
     table_name = TABLE_NAMES$visual_artifact_metadata,
@@ -1283,7 +1478,9 @@ get_visual_artifact_metadata <- function(
   con,
   artifact_ids = NULL,
   artifact_type = NULL,
-  include_inactive = FALSE
+  include_inactive = FALSE,
+  session_scope = NULL,
+  include_all_scopes = FALSE
 ) {
   ensure_visual_artifact_metadata(con)
 
@@ -1292,6 +1489,12 @@ get_visual_artifact_metadata <- function(
 
   if (!isTRUE(include_inactive)) {
     where_clauses <- c(where_clauses, "is_active = 1")
+  }
+
+  if (!isTRUE(include_all_scopes)) {
+    scope <- get_artifact_session_scope(session_scope)
+    where_clauses <- c(where_clauses, "session_scope = ?")
+    params <- c(params, list(scope))
   }
 
   if (!is.null(artifact_ids) && length(artifact_ids) > 0) {
@@ -1321,6 +1524,7 @@ get_visual_artifact_metadata <- function(
   sql <- "
     SELECT
       artifact_id,
+      session_scope,
       artifact_type,
       table_name,
       table_label,
@@ -1368,7 +1572,8 @@ rerender_visual_artifact <- function(
   con,
   artifact_id,
   overrides = list(),
-  add_data_view = FALSE
+  add_data_view = FALSE,
+  session_scope = NULL
 ) {
   artifact_id <- normalize_viz_scalar(artifact_id)
   if (is.na(artifact_id)) {
@@ -1378,7 +1583,9 @@ rerender_visual_artifact <- function(
   current <- get_visual_artifact_metadata(
     con = con,
     artifact_ids = list(artifact_id),
-    include_inactive = TRUE
+    include_inactive = TRUE,
+    session_scope = session_scope,
+    include_all_scopes = FALSE
   )
 
   if (length(current$artifacts) == 0) {
@@ -1409,7 +1616,8 @@ rerender_visual_artifact <- function(
       height = merged$height %||% 5,
       dpi = merged$dpi %||% 180,
       limit_rows = merged$limit_rows %||% 50000L,
-      add_data_view = isTRUE(add_data_view)
+      add_data_view = isTRUE(add_data_view),
+      session_scope = session_scope
     ))
   }
 
@@ -1428,7 +1636,8 @@ rerender_visual_artifact <- function(
       width = merged$width %||% 9,
       height = merged$height %||% 5,
       dpi = merged$dpi %||% 180,
-      add_data_view = isTRUE(add_data_view)
+      add_data_view = isTRUE(add_data_view),
+      session_scope = session_scope
     ))
   }
 

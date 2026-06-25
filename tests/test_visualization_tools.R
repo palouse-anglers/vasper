@@ -891,6 +891,62 @@ describe("get_visual_artifact_metadata", {
     expect_equal(out$artifacts[[1]]$description, "CEC by producer")
     expect_equal(out$artifacts[[1]]$spec$schema_name, "basic")
   })
+
+  test_that("isolates artifacts by session_scope", {
+    con <- make_test_db()
+    withr::defer(DBI::dbDisconnect(con, shutdown = TRUE))
+
+    run_create_plot_from_schema(
+      con = con,
+      schema_name = "basic",
+      table_name = "soil_samples",
+      column_map = list(x = "producer_id", y = "organic_matter", geom = "col"),
+      description = "Scope A artifact",
+      artifact_name = "scope_probe",
+      session_scope = "scope_a"
+    )
+
+    run_create_plot_from_schema(
+      con = con,
+      schema_name = "basic",
+      table_name = "soil_samples",
+      column_map = list(x = "producer_id", y = "organic_matter", geom = "col"),
+      description = "Scope B artifact",
+      artifact_name = "scope_probe",
+      session_scope = "scope_b"
+    )
+
+    out_a <- get_visual_artifact_metadata(
+      con = con,
+      artifact_ids = "scope_probe",
+      session_scope = "scope_a"
+    )
+
+    out_b <- get_visual_artifact_metadata(
+      con = con,
+      artifact_ids = "scope_probe",
+      session_scope = "scope_b"
+    )
+
+    out_all <- get_visual_artifact_metadata(
+      con = con,
+      artifact_ids = "scope_probe",
+      include_all_scopes = TRUE
+    )
+
+    expect_equal(length(out_a$artifacts), 1)
+    expect_equal(length(out_b$artifacts), 1)
+    expect_equal(length(out_all$artifacts), 2)
+
+    expect_equal(out_a$artifacts[[1]]$session_scope, "scope_a")
+    expect_equal(out_b$artifacts[[1]]$session_scope, "scope_b")
+
+    expect_equal(out_a$artifacts[[1]]$description, "Scope A artifact")
+    expect_equal(out_b$artifacts[[1]]$description, "Scope B artifact")
+
+    expect_true(grepl("/scope_a/", out_a$artifacts[[1]]$png_path, fixed = TRUE))
+    expect_true(grepl("/scope_b/", out_b$artifacts[[1]]$png_path, fixed = TRUE))
+  })
 })
 
 # =============================================================================
