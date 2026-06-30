@@ -18,12 +18,13 @@ The app registers the following tool set:
 - `get_weather_stations_wsu` — WSU AgWeatherNet station metadata for the three granted Columbia County, WA stations (Hogeye 100326, Jackson 100328, Alto 100329)
 - `get_weather_historical_wsu` — Historical WSU AgWeatherNet records for a specific `station_id` and date range (native 15-minute interval data; aggregate to hourly/daily/monthly via `query_tables` SQL)
 - `get_yield_historical_nass` — USDA NASS QuickStats historical Columbia County, WA crop data with paired raw and trend tables
+- `get_seed_variety_trials` — Queries the seed variety trial database (2023 Dayton and Walla Walla winter wheat trials); supports filtering by wheat class, location, variety name pattern, yield, and protein thresholds
 - `list_plot_schemas` — Lists available curated plot schemas
 - `read_plot_schemas` — Reads full payload/template details for selected plot schemas
 - `create_plot_from_schema` — Creates a plot artifact from a selected schema and column mapping
 - `create_plot_code` — Creates a custom plot artifact from explicit ggplot code (with required schema inspiration)
 - `get_visual_artifact_metadata` — Lists generated visualization artifacts and file paths
-- `search_knowledge` — Searches the curated Washington soil-health knowledge base (RAG)
+- `search_knowledge` — Searches the curated knowledge base (RAG): Washington soil-health content, WSU Preferred Varieties 2025, and NWGRGR seed program context
 
 ### Session tools added in [app.R](app.R)
 

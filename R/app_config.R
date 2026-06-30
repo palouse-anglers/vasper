@@ -6,7 +6,8 @@ TABLE_NAMES <- list(
   data_dictionary = "data_dictionary",
   sample_locations = "sample_locations",
   table_metadata = "table_metadata",
-  visual_artifact_metadata = "visual_artifact_metadata"
+  visual_artifact_metadata = "visual_artifact_metadata",
+  seed_variety_trials = "seed_variety_trials"
 )
 
 # Report defaults and conventions.

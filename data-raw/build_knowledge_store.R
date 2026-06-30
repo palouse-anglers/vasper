@@ -32,6 +32,12 @@ if (!nzchar(Sys.getenv("OPENAI_API_KEY"))) {
 soil_health_seed <-
   "https://washingtonsoilhealthinitiative.com/state-of-the-soils/"
 
+# Northwest Grain Growers seed department page for Columbia County / Dayton.
+# This page provides general seed program context, facility hours, and links
+# to NWGG's annual plot trial data — all useful background for the assistant.
+nwgg_seed_page <-
+  "https://www.nwgrgr.com/fccp-seed-21683"
+
 # Optional discovery seeds on pubs.extension.wsu.edu.
 #
 # In some environments these category pages can return 403 or refuse
@@ -93,7 +99,12 @@ wsu_curated_pdfs <- c(
   "https://wpcdn.web.wsu.edu/wp-ecommerce/uploads/sites/2/product-4731-sku-FS378E.pdf",
   "https://wpcdn.web.wsu.edu/wp-ecommerce/uploads/sites/2/product-4732-sku-FS379E.pdf",
   "https://wpcdn.web.wsu.edu/wp-ecommerce/uploads/sites/2/product-4746-sku-EM124E.pdf",
-  "https://wpcdn.web.wsu.edu/extension/uploads/sites/30/home-gardener-guide-to-soils-EM063E.pdf"
+  "https://wpcdn.web.wsu.edu/extension/uploads/sites/30/home-gardener-guide-to-soils-EM063E.pdf",
+
+  # WSU CAHNRS 2025 Preferred Varieties brochure — covers variety recommendations
+  # for winter wheat, spring wheat, barley, and other PNW crops. Useful
+  # background for farmers asking about variety selection.
+  "https://wpcdn.web.wsu.edu/cahnrs/uploads/sites/16/Brochure-PreferredVarieties2025-Accessible.pdf"
 )
 
 # 2. Harvest candidate content URLs ----
@@ -167,6 +178,11 @@ soil_health_pages <- soil_health_pages[
     soil_health_pages
   )
 ]
+
+# NWGG seed page: ingest the landing page directly (no sub-link discovery
+# needed; the page contains seed facility hours and program context).
+# The PDF test-plot tables are stored as structured data in DuckDB, not here.
+nwgg_pages <- nwgg_seed_page
 
 # Optional discovery path for environments where pubs.extension.wsu.edu allows
 # automated requests. Disabled by default to avoid repeated connection failures.
@@ -249,6 +265,7 @@ wsu_pages <- wsu_pages[!is_home_garden_source(wsu_pages)]
 pages <- unique(c(
   soil_health_seed,
   soil_health_pages,
+  nwgg_pages,
   wsu_pages
 ))
 

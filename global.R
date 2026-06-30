@@ -79,6 +79,9 @@ dbExecute(
   )
 )
 
+# Load Seed Variety Trial data into DuckDB
+load_seed_variety_trials(con)
+
 # Initialize metadata registry for user-facing data labels
 ensure_table_metadata(con)
 ensure_visual_artifact_metadata(con)
@@ -1294,6 +1297,117 @@ default_prompt_id <- prompt_config$default_prompt_id
 # data-raw/build_knowledge_store.R). NULL when the store file is absent.
 knowledge_store <- connect_knowledge_store()
 
+# Seed variety trial data tool ----
+# Exposes the pre-loaded seed_variety_trials table to the AI assistant.
+get_seed_variety_trials <- tool(
+  function(
+    wheat_class = NULL,
+    location = NULL,
+    variety_pattern = NULL,
+    min_yield = NULL,
+    max_yield = NULL,
+    min_protein = NULL,
+    max_protein = NULL,
+    order_by = "yield_bu_ac",
+    descending = TRUE,
+    limit = 30L,
+    table_label = NULL,
+    add_data_view = TRUE
+  ) {
+    run_seed_variety_trial_query(
+      con = con,
+      table_name = TABLE_NAMES$seed_variety_trials,
+      wheat_class = wheat_class,
+      location = location,
+      variety_pattern = variety_pattern,
+      min_yield = min_yield,
+      max_yield = max_yield,
+      min_protein = min_protein,
+      max_protein = max_protein,
+      order_by = order_by,
+      descending = descending,
+      limit = limit,
+      table_label = table_label,
+      add_data_view = add_data_view
+    )
+  },
+  name = "get_seed_variety_trials",
+  description = paste(
+    "Query 2023 WSU/Northwest Grain Growers winter wheat variety trial data",
+    "from Dayton, WA (Columbia County) and Walla Walla, WA.",
+    "Returns variety performance metrics: yield (bu/ac), test weight (lb/bu),",
+    "protein (%), plant height (in), and days to maturity.",
+    "Trials include Hard Red Winter (HRW) and Soft White Winter (SWW) classes.",
+    "Use this to help farmers compare and select wheat varieties based on",
+    "local performance data. Supports filtering by wheat_class (HRW/SWW),",
+    "location, variety name pattern, yield range, and protein range."
+  ),
+  arguments = list(
+    wheat_class = type_string(
+      "Filter by wheat class: 'HRW' (Hard Red Winter) or 'SWW' (Soft White Winter). Leave empty for all.",
+      required = FALSE
+    ),
+    location = type_string(
+      "Filter by location (partial match). E.g. 'Dayton' or 'Walla Walla'.",
+      required = FALSE
+    ),
+    variety_pattern = type_string(
+      "Filter by variety name (partial match, case-insensitive). E.g. 'LCS' or 'Keldin'.",
+      required = FALSE
+    ),
+    min_yield = type_number(
+      "Minimum yield in bu/ac to include.",
+      required = FALSE
+    ),
+    max_yield = type_number(
+      "Maximum yield in bu/ac to include.",
+      required = FALSE
+    ),
+    min_protein = type_number(
+      "Minimum protein % to include.",
+      required = FALSE
+    ),
+    max_protein = type_number(
+      "Maximum protein % to include.",
+      required = FALSE
+    ),
+    order_by = type_enum(
+      "Column to sort by (default: yield_bu_ac).",
+      values = c(
+        "yield_bu_ac",
+        "protein_pct",
+        "test_weight_lb_bu",
+        "height_in",
+        "maturity_days",
+        "variety",
+        "trial_name",
+        "location"
+      ),
+      required = FALSE
+    ),
+    descending = type_boolean(
+      "Sort descending (default TRUE = highest first).",
+      required = FALSE
+    ),
+    limit = type_number(
+      "Maximum rows to return (default 30, max 200).",
+      required = FALSE
+    ),
+    table_label = type_string(
+      "User-facing label for the result table in the Data page.",
+      required = FALSE
+    ),
+    add_data_view = type_boolean(
+      "Whether to save results as a queryable Data view (default TRUE).",
+      required = FALSE
+    )
+  ),
+  annotations = tool_annotations(
+    title = "Seed Variety Trials",
+    icon = icon("seedling")
+  )
+)
+
 search_knowledge <- tool(
   function(query, top_k = KNOWLEDGE_TOP_K) {
     run_search_knowledge(
@@ -1337,6 +1451,7 @@ CHAT_TOOLS <- list(
   get_weather_stations_wsu = tool_get_weather_stations_wsu,
   get_weather_historical_wsu = tool_get_weather_historical_wsu,
   get_yield_historical_nass = get_yield_historical_nass,
+  get_seed_variety_trials = get_seed_variety_trials,
   query_tables = query_tables,
   get_table_profile = tool_get_table_profile,
   list_plot_schemas = list_plot_schemas,
